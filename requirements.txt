@@ -1,2 +1,3 @@
 mobi
 trafilatura
+nltk
