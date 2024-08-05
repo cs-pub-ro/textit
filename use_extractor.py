@@ -15,11 +15,11 @@ extractor.add_processor(quality_filter)
 extractor.add_processor(language_identification)
 
 # Example usage for a PDF file
-pdf_file_path = "path/to/your/document.pdf"
-pdf_metadata = Metadata(file_type=FileType.PDF, document_class=DocumentClass.BOOK)
+mobi_file_path = "tests/fixtures/J.R.R. Tolkien - Stapinul inelelor 1 - Fratia inelului.mobi"
+mobi_metadata = Metadata(file_type=FileType.MOBI, document_class=DocumentClass.BOOK)
 
-result = extractor.extract_text(pdf_file_path, pdf_metadata)
-handle_result(result, "Extracted text from PDF:")
+result = extractor.extract_text(mobi_file_path, mobi_metadata)
+handle_result(result, "Extracted text from MOBI:")
 
 # Example usage for an unsupported file type
 unsupported_file_path = "path/to/your/document.unsupported"

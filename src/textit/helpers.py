@@ -1,7 +1,31 @@
+import logging
+import os
 from typing import Generic, TypeVar, Callable, Optional
 
 T = TypeVar('T')
 U = TypeVar('U')
+
+# Set up logging
+log_dir = "logs"
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# Create a logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
+
+# Check if the logger already has handlers to avoid duplicate logging
+if not logger.handlers:
+    # Add a file handler with the PID in the filename
+    pid = os.getpid()
+    file_handler = logging.FileHandler(f"{log_dir}/{pid}.err")
+    file_handler.setLevel(logging.ERROR)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    # Prevent the logger from propagating messages to the root logger
+    logger.propagate = False
 
 class Result(Generic[T]):
     def __init__(self, value: Optional[T], error: Optional[str]):
@@ -14,6 +38,7 @@ class Result(Generic[T]):
 
     @classmethod
     def err(cls, error: str) -> 'Result[T]':
+        logger.error(f"Error occurred: {error}")
         return cls(None, error)
 
     def is_ok(self) -> bool:

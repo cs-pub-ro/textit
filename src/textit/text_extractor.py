@@ -11,7 +11,7 @@ from textit.metadata import Metadata, FileType, DocumentClass
 from textit.helpers import Result
 
 # Type aliases
-HandlerFunction = Callable[[str, Metadata], List[str]]
+HandlerFunction = Callable[[str, Metadata], Result[List[str]]]
 ProcessingFunction = Callable[[str], str]
 
 class TextExtractor:
@@ -40,7 +40,8 @@ class TextExtractor:
         return (
             self._determine_file_type(file_path, metadata)
             .and_then(self._get_handler)
-            .and_then(lambda handler: self._extract_and_process(handler, file_path, metadata))
+            .and_then(lambda handler: handler(file_path, metadata))
+            .map(self._process_text)
         )
 
     def _determine_file_type(self, file_path: str, metadata: Metadata) -> Result[FileType]:
@@ -54,8 +55,8 @@ class TextExtractor:
             'pdf': FileType.PDF,
             'doc': FileType.DOC,
             'html': FileType.HTML,
-            'rtf': FileType.RTF,
-            'dvi': FileType.DVI,
+            #'rtf': FileType.RTF,
+            #'dvi': FileType.DVI,
             'mobi': FileType.MOBI,
             'epub': FileType.EPUB
         }
@@ -71,14 +72,6 @@ class TextExtractor:
         if handler is None:
             return Result.err(f"Invalid File Type: {file_type}. No registered handler.")
         return Result.ok(handler)
-
-    def _extract_and_process(self, handler: HandlerFunction, file_path: str, metadata: Metadata) -> Result[List[str]]:
-        try:
-            raw_text = handler(file_path, metadata)
-            processed_text = self._process_text(raw_text)
-            return Result.ok(processed_text)
-        except Exception as e:
-            return Result.err(f"Error during text extraction: {str(e)}")
 
     def _process_text(self, raw_text: List[str]) -> List[str]:
         with ThreadPoolExecutor() as executor:
