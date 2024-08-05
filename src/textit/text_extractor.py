@@ -63,7 +63,7 @@ class TextExtractor:
         
         file_type = extension_to_type.get(extension)
         if file_type is None:
-            return Result.err(f"Unsupported file extension: {extension}")
+            return Result.err(f"Unsupported file extension for {file_path}: {extension}")
         
         return Result.ok(file_type)
 
