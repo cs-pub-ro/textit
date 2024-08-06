@@ -1,7 +1,14 @@
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
+import argparse
+import json
+import gzip
+from tqdm import tqdm
+from typing import Dict, Any
+import multiprocessing as mp
 
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 from textit.text_extractor import TextExtractor, Metadata, FileType, DocumentClass
 from textit.processors import text_repair, quality_filter, language_identification
 from textit.helpers import handle_result
@@ -29,21 +36,51 @@ def get_file_type(file_path):
         print("Error: 'file' command not found")
         return None
 
-# Create an instance of TextExtractor
-extractor = TextExtractor()
+def process_file(file_path: str) -> Dict[str, Any] | None:
+	extractor = TextExtractor()
+	extractor.add_processor(text_repair)
+	extractor.add_processor(quality_filter)
+	extractor.add_processor(language_identification)
 
-# Add processing functions to the pipeline
-extractor.add_processor(text_repair)
-extractor.add_processor(quality_filter)
-extractor.add_processor(language_identification)
+	file_type = get_file_type(file_path)
+	metadata = Metadata(file_type=file_type, document_class=DocumentClass.BOOK)
+	result = extractor.extract_text(file_path, metadata)
+	
+	title = os.path.splitext(os.path.basename(file_path))[0]
+	
+	if result.is_ok():
+		text = result.unwrap()
+		return {
+			"title": title,
+			"file_path": file_path,
+			"text": '\n'.join(text),
+		}
+	else:
+		return None
 
-# Example usage for a PDF file
-file_path = "tests/fixtures/J.R.R. Tolkien - Stapinul inelelor 1 - Fratia inelului.mobi"
-file_type = get_file_type(file_path)
+def main():
+	parser = argparse.ArgumentParser(description="Extract text from files in a directory")
+	parser.add_argument("input_dir", help="Path to the input directory")
+	parser.add_argument("output_file", help="Path to the output .json.gz file")
+	parser.add_argument("--num_processes", type=int, default=mp.cpu_count(), 
+						help="Number of processes to use (default: number of CPU cores)")
+	args = parser.parse_args()
 
-metadata = Metadata(file_type=file_type, document_class=DocumentClass.BOOK)
+	file_list = []
+	for root, _, files in os.walk(args.input_dir):
+		for file in files:
+			file_list.append(os.path.join(root, file))
 
-result = extractor.extract_text(file_path, metadata)
-if result.is_ok():
-    text = result.unwrap()
-    print('\n'.join(text))
+	with mp.Pool(processes=args.num_processes) as pool:
+		results = list(tqdm(pool.imap(process_file, file_list), 
+							total=len(file_list), 
+							desc="Processing files", 
+							unit="file"))
+
+	with gzip.open(args.output_file, 'wt', encoding='utf-8') as out_file:
+		for result in results:
+			if result is not None:
+				out_file.write(json.dumps(result) + '\n')
+
+if __name__ == "__main__":
+	main()
