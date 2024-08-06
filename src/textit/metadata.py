@@ -20,3 +20,4 @@ class DocumentClass(Enum):
 class Metadata:
     file_type: Optional[FileType] = None
     document_class: Optional[DocumentClass] = None
+    digest: Optional[str] = None

@@ -2,7 +2,9 @@ from typing import List, Optional, Dict, Callable, Union
 from dataclasses import dataclass
 from enum import Enum, auto
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 import os
+import hashlib
 
 from textit.extractors import pdf_extractor, doc_extractor, epub_extractor
 from textit.extractors import html_extractor, mobi_extractor
@@ -13,6 +15,12 @@ from textit.helpers import Result
 # Type aliases
 HandlerFunction = Callable[[str, Metadata], Result[List[str]]]
 ProcessingFunction = Callable[[str], str]
+
+def compute_sha1(text):
+    text_bytes = text.encode('utf-8')
+    sha1_hash = hashlib.sha1()
+    sha1_hash.update(text_bytes)
+    return sha1_hash.hexdigest()
 
 class TextExtractor:
     def __init__(self):
@@ -33,16 +41,31 @@ class TextExtractor:
     def add_processor(self, processor: ProcessingFunction) -> None:
         self.processing_pipeline.append(processor)
 
-    def extract_text(self, file_path: str, metadata: Optional[Metadata] = None) -> Result[List[str]]:
+    def extract_text(self, file_path: str, metadata: Optional[Metadata] = None) -> (Result[List[str]], Metadata):
+        
         if metadata is None:
             metadata = Metadata()
 
-        return (
-            self._determine_file_type(file_path, metadata)
+        # Identify the file type and the handler. and_then simply applies the
+        # function received as an argument if the value is Result[T] and not
+        # Error
+        file_type_handler = (self._determine_file_type(file_path, metadata)
             .and_then(self._get_handler)
-            .and_then(lambda handler: handler(file_path, metadata))
-            .map(self._process_text)
-        )
+            )
+
+        # Extract the text using the right handler
+        text = file_type_handler.and_then(lambda handler: handler(file_path, metadata))
+        
+        # Add the digest of the entire text, might be used for exact
+        # deduplication
+        if text.is_ok():
+            metadata.digest = compute_sha1('\n'.join(text.unwrap()))
+        
+        # Call the pipeline functions for text processing
+        processed_text = text.map(self._process_text)
+
+        return (processed_text, metadata)
+        
 
     def _determine_file_type(self, file_path: str, metadata: Metadata) -> Result[FileType]:
         if metadata.file_type:
