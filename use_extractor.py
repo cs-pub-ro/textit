@@ -37,6 +37,7 @@ def get_file_type(file_path):
         return None
 
 def process_file(file_path: str) -> Dict[str, Any] | None:
+
     extractor = TextExtractor()
     extractor.add_processor(text_repair)
     extractor.add_processor(quality_filter)
@@ -45,6 +46,8 @@ def process_file(file_path: str) -> Dict[str, Any] | None:
     file_type = get_file_type(file_path)
     metadata = Metadata(file_type=file_type, document_class=DocumentClass.BOOK)
     result, metadata = extractor.extract_text(file_path, metadata)
+
+    assert(metadata is not None)
     
     title = os.path.splitext(os.path.basename(file_path))[0]
     
@@ -53,10 +56,16 @@ def process_file(file_path: str) -> Dict[str, Any] | None:
 
         result = {
             "title": title,
-            "file_path": file_path,
+            "url": file_path,
         }
         if metadata.digest is not None:
             result['digest'] = metadata.digest
+    
+        if metadata.nlines is not None:
+            result['digest'] = metadata.nlines
+
+        if metadata.original_nlines is not None:
+            result['original_nlines'] = metadata.original_nlines
 
         result['raw_content'] = '\n'.join(text)
 
@@ -82,6 +91,8 @@ def main():
     args = parser.parse_args()
 
     file_list = []
+
+    # TODO: We can remove from the file list the already processed files
     for root, _, files in os.walk(args.input_dir):
         for file in files:
             file_list.append(os.path.join(root, file))

@@ -59,13 +59,20 @@ class TextExtractor:
         # Add the digest of the entire text, might be used for exact
         # deduplication
         if text.is_ok():
-            metadata.digest = compute_sha1('\n'.join(text.unwrap()))
+            full_text = '\n'.join(text.unwrap())
+            # I think it's better to have the hash before processing because is
+            # the text that has the least changes from the original material
+            metadata.digest = compute_sha1(full_text)
+            metadata.original_nlines = len(full_text.split('\n'))
         
         # Call the pipeline functions for text processing
         processed_text = text.map(self._process_text)
+    
+        if processed_text.is_ok():
+            full_text = '\n'.join(processed_text.unwrap())
+            metadata.original_nlines = len(full_text.split('\n'))
 
         return (processed_text, metadata)
-        
 
     def _determine_file_type(self, file_path: str, metadata: Metadata) -> Result[FileType]:
         if metadata.file_type:
