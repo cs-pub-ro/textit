@@ -7,7 +7,7 @@ Get the language identification model.
 
 ```Bash
 pip3 install -r requirements.txt
-cd src/textit/processors/lang_id/ && wget https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin
+cd src/textit/processors && mkdir -p lang_id && cd lang_id && touch __init__.py && wget https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin
 ```
 
 ## Usage

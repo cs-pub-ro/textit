@@ -62,7 +62,7 @@ def process_file(file_path: str) -> Dict[str, Any] | None:
             result['digest'] = metadata.digest
     
         if metadata.nlines is not None:
-            result['digest'] = metadata.nlines
+            result['nlines'] = metadata.nlines
 
         if metadata.original_nlines is not None:
             result['original_nlines'] = metadata.original_nlines
