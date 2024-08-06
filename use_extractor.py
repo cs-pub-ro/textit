@@ -58,12 +58,20 @@ def process_file(file_path: str) -> Dict[str, Any] | None:
 	else:
 		return None
 
+def write_to_separate_files(results: list, output_dir: str):
+	os.makedirs(output_dir, exist_ok=True)
+	for result in results:
+		output_file = os.path.join(output_dir, f"{result['title']}.json")
+		with open(output_file, 'w', encoding='utf-8') as f:
+			json.dump(result, f, ensure_ascii=False, indent=2)
+
 def main():
 	parser = argparse.ArgumentParser(description="Extract text from files in a directory")
 	parser.add_argument("input_dir", help="Path to the input directory")
 	parser.add_argument("output_file", help="Path to the output .json.gz file")
 	parser.add_argument("--num_processes", type=int, default=mp.cpu_count(), 
 						help="Number of processes to use (default: number of CPU cores)")
+	parser.add_argument("--separate_files", help="Directory to write separate JSON files for each input file")
 	args = parser.parse_args()
 
 	file_list = []
@@ -76,11 +84,13 @@ def main():
 							total=len(file_list), 
 							desc="Processing files", 
 							unit="file"))
-
-	with gzip.open(args.output_file, 'wt', encoding='utf-8') as out_file:
-		for result in results:
-			if result is not None:
-				out_file.write(json.dumps(result) + '\n')
+	if args.separate_files:
+		write_to_separate_files(results, args.separate_files)
+	else:
+		with gzip.open(args.output_file, 'wt', encoding='utf-8') as out_file:
+			for result in results:
+				if result is not None:
+					out_file.write(json.dumps(result) + '\n')
 
 if __name__ == "__main__":
 	main()
