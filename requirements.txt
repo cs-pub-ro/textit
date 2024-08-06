@@ -4,3 +4,5 @@ nltk
 numpy
 tqdm
 ebooklib
+fasttext
+numpy>=1.26.4,<2.0.0
