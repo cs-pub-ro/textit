@@ -3,3 +3,4 @@ trafilatura
 nltk
 numpy
 tqdm
+ebooklib
