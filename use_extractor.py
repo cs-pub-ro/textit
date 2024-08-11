@@ -94,14 +94,19 @@ def main():
                         help="Number of processes to use (default: number of CPU cores)")
     args = parser.parse_args()
 
-    file_list = []
+    os.makedirs(args.output_dir, exist_ok=True)
 
-    # TODO: We can remove from the file list the already processed files
+    file_list = []
     for root, _, files in os.walk(args.input_dir):
         for file in files:
-            file_list.append(os.path.join(root, file))
-
-    os.makedirs(args.output_dir, exist_ok=True)
+            input_file_path = os.path.join(root, file)
+            output_file_name = os.path.splitext(file)[0] + '.json'
+            output_file_path = os.path.join(args.output_dir, output_file_name)
+            
+            if not os.path.exists(output_file_path):
+                file_list.append(input_file_path)
+            else:
+                print(f'File {input_file_path} already processed')
 
     with mp.Pool(processes=args.num_processes) as pool:
         results = list(tqdm(pool.starmap(process_file, [(file, args.output_dir) for file in file_list]), 
