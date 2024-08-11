@@ -5,6 +5,7 @@ from typing import Optional
 class FileType(Enum):
     PDF = auto()
     DOC = auto()
+    DOCX = auto()
     HTML = auto()
     RTF = auto()
     DVI = auto()

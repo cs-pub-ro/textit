@@ -27,6 +27,7 @@ class TextExtractor:
         self.handlers: Dict[FileType, HandlerFunction] = {
             FileType.PDF: pdf_extractor.pdf_handler,
             FileType.DOC: doc_extractor.doc_handler,
+            FileType.DOCX: doc_extractor.doc_handler,
             FileType.HTML: html_extractor.html_handler,
             #FileType.RTF: rtf_extractor.rtf_handler,
             #FileType.DVI: dvi_extractor.dvi_handler,
@@ -84,6 +85,7 @@ class TextExtractor:
         extension_to_type = {
             'pdf': FileType.PDF,
             'doc': FileType.DOC,
+            'docx': FileType.DOC,
             'html': FileType.HTML,
             #'rtf': FileType.RTF,
             #'dvi': FileType.DVI,
