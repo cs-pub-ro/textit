@@ -81,14 +81,6 @@ def process_file(file_path: str, output_dir: str) -> None:
     else:
         return None
 
-def write_to_separate_files(results: list, output_dir: str):
-    os.makedirs(output_dir, exist_ok=True)
-    for result in results:
-        if result is not None:
-            output_file = os.path.join(output_dir, f"{result['title']}.json")
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(result, f, ensure_ascii=False, indent=2)
-
 def main():
     parser = argparse.ArgumentParser(description="Extract text from files in a directory")
     parser.add_argument("input_dir", help="Path to the input directory")
@@ -116,7 +108,6 @@ def main():
                             total=len(file_list), 
                             desc="Processing files", 
                             unit="file"))
-    write_to_separate_files(results, args.output_dir)
 
 if __name__ == "__main__":
     main()
