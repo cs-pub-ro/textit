@@ -20,7 +20,8 @@ def get_file_type(file_path):
     try:
         result = subprocess.run(['file', '-b', file_path], capture_output=True, text=True, check=True)
         file_info = result.stdout.strip().upper()
-        
+        if "HTML" in file_info:
+            return FileType.HTML
         if "MOBIPOCKET" in file_info:
             return FileType.MOBI
         elif "PDF" in file_info:
@@ -36,7 +37,7 @@ def get_file_type(file_path):
         print("Error: 'file' command not found")
         return None
 
-def process_file(file_path: str) -> Dict[str, Any] | None:
+def process_file(file_path: str, output_dir: str) -> None:
 
     extractor = TextExtractor()
     extractor.add_processor(text_repair)
@@ -69,7 +70,11 @@ def process_file(file_path: str) -> Dict[str, Any] | None:
 
         result['raw_content'] = '\n'.join(text)
 
-        return result
+        
+        # Write the result
+        output_file = os.path.join(output_dir, f"{title}.json")
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
     else:
         return None
 
@@ -84,10 +89,9 @@ def write_to_separate_files(results: list, output_dir: str):
 def main():
     parser = argparse.ArgumentParser(description="Extract text from files in a directory")
     parser.add_argument("input_dir", help="Path to the input directory")
-    parser.add_argument("output_file", help="Path to the output .json.gz file")
+    parser.add_argument("output_dir", help="Path to the output .json.gz file")
     parser.add_argument("--num_processes", type=int, default=mp.cpu_count(), 
                         help="Number of processes to use (default: number of CPU cores)")
-    parser.add_argument("--separate_files", help="Directory to write separate JSON files for each input file")
     args = parser.parse_args()
 
     file_list = []
@@ -97,18 +101,14 @@ def main():
         for file in files:
             file_list.append(os.path.join(root, file))
 
+    os.makedirs(args.output_dir, exist_ok=True)
+
     with mp.Pool(processes=args.num_processes) as pool:
-        results = list(tqdm(pool.imap(process_file, file_list), 
+        results = list(tqdm(pool.starmap(process_file, [(file, args.output_dir) for file in file_list]), 
                             total=len(file_list), 
                             desc="Processing files", 
                             unit="file"))
-    if args.separate_files:
-        write_to_separate_files(results, args.separate_files)
-    else:
-        with gzip.open(args.output_file, 'wt', encoding='utf-8') as out_file:
-            for (text, metadata) in results:
-                if text is not None:
-                    out_file.write(json.dumps(result) + '\n')
+    write_to_separate_files(results, args.output_dir)
 
 if __name__ == "__main__":
     main()

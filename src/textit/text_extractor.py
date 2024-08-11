@@ -61,6 +61,7 @@ class TextExtractor:
         # deduplication
         if text.is_ok():
             full_text = '\n'.join(text.unwrap())
+
             # I think it's better to have the hash before processing because is
             # the text that has the least changes from the original material
             metadata.digest = compute_sha1(full_text)
@@ -72,6 +73,7 @@ class TextExtractor:
         if processed_text.is_ok():
             full_text = '\n'.join(processed_text.unwrap())
             metadata.original_nlines = len(full_text.split('\n'))
+
 
         return (processed_text, metadata)
 

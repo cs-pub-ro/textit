@@ -5,10 +5,12 @@ from textit.helpers import Result
 from trafilatura import extract
 
 def html_handler(file_path: str, metadata: Metadata) -> Result[List[str]]:
-	try:
-		with open(file_path, 'r', encoding='utf-8') as f:
-			extracted_text = extract(f.read())
-		return Result.ok([extracted_text])
-	except Exception as e:
-		return Result.err(f"Error extracting text from HTML: {str(e)}")
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            extracted_text = extract(f.read())
+
+        #print(extracted_text)
+        return Result.ok([extracted_text])
+    except Exception as e:
+        return Result.err(f"Error extracting text from HTML: {str(e)}")
 

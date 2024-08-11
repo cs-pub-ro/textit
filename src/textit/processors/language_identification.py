@@ -29,6 +29,7 @@ def language_identification(text: str) -> str:
     """
     
     score = get_romanian_score(text)
+
     if score < 0.5:
         return ""
     return text

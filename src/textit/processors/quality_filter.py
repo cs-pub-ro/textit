@@ -135,6 +135,7 @@ def quality_filter(text: str) -> str:
     Returns:
         str: The filtered text, or an empty string if it doesn't meet quality standards.
     """
+
     ngram_2 = RPS_Frac_Chars_In_Top_NGram(text, 2)
     ngram_3 = RPS_Frac_Chars_In_Top_NGram(text, 3)
     ngram_4 = RPS_Frac_Chars_In_Top_NGram(text, 4)
@@ -149,7 +150,7 @@ def quality_filter(text: str) -> str:
     if ngram_2 > 0.2 or ngram_3 > 0.18 or ngram_4 > 0.16:
         return ""
 
-    if ngram_5 > 0.15 or ngram_6 > 0.14 or ngram_7 > 0.13 or ngram_8 > 0.12 or ngram_9 > 0.11 or ngram_10 > 0.10:
-        return ""
+    #if ngram_5 > 0.15 or ngram_6 > 0.14 or ngram_7 > 0.13 or ngram_8 > 0.12 or ngram_9 > 0.11 or ngram_10 > 0.10:
+    #    return ""
 
     return text
