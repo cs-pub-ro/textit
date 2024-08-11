@@ -70,11 +70,12 @@ def process_file(file_path: str, output_dir: str) -> None:
 
         result['raw_content'] = '\n'.join(text)
 
-        
-        # Write the result
-        output_file = os.path.join(output_dir, f"{title}.json")
-        with open(output_file, 'w', encoding='utf-8') as f:
+         # Write the result to a temporary file and then rename it
+        output_file_tmp = os.path.join(output_dir, f"{title}.json.tmp")
+        output_file_final = os.path.join(output_dir, f"{title}.json")
+        with open(output_file_tmp, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
+        os.rename(output_file_tmp, output_file_final)
     else:
         return None
 
