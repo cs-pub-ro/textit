@@ -22,6 +22,8 @@ def get_file_type(file_path):
         file_info = result.stdout.strip().upper()
         if "HTML" in file_info:
             return FileType.HTML
+        if "EPUB" in file_info:
+            return FileType.EPUB
         if "MOBIPOCKET" in file_info:
             return FileType.MOBI
         elif "PDF" in file_info:
