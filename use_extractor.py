@@ -12,6 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 from textit.text_extractor import TextExtractor, Metadata, FileType, DocumentClass
 from textit.processors import text_repair, quality_filter, language_identification
 from textit.helpers import handle_result
+import textit.version
 
 import subprocess
 
@@ -51,19 +52,20 @@ def process_file(file_path: str, output_dir: str) -> None:
     result, metadata = extractor.extract_text(file_path, metadata)
 
     assert(metadata is not None)
-    
+
     title = os.path.splitext(os.path.basename(file_path))[0]
-    
+
     if result.is_ok():
         text = result.unwrap()
 
         result = {
             "title": title,
             "url": file_path,
+            "extract_version": textit.version.__version__
         }
         if metadata.digest is not None:
             result['digest'] = metadata.digest
-    
+
         if metadata.nlines is not None:
             result['nlines'] = metadata.nlines
 
