@@ -151,6 +151,7 @@ class Page(object):
         return self.page.get_size()
 
     def _compute_text_boxes(self):
+        self.boxes = []
         self._compute_bboxes_sorted()
         if not self.bboxes:
             self._broken = True
@@ -165,15 +166,11 @@ class Page(object):
                 clusters[label] = []
             clusters[label].append(rect)
 
-        self.boxes = []
         for _, bboxes in clusters.items():
             big_box = get_encompassing_bbox(bboxes)
             self.boxes.append((big_box, bboxes))
 
     def _compute_lines(self):
-        if not self.bboxes:
-            return
-
         def get_text_in_bbox(bbox):
             if self._text_page is None:
                 self._text_page = self.page.get_textpage()
@@ -186,6 +183,9 @@ class Page(object):
             lines.append((big_box, text))
 
         self._line_boxes = []
+        if not self.bboxes:
+            return
+
         for big_box, bboxes in self.boxes:
             lines = []
             current_line_boxes = [bboxes[0]]
@@ -249,6 +249,10 @@ class Page(object):
                 # instead of that, we just keep all distances squared.
                 # That's why, this distance is better off sqrted.
                 bisect.insort(distances, mind)
+
+        if not distances:
+            self.eps = 1
+            return
 
         # print(f"BBOXES ({len(self.bboxes)}): {self.bboxes}")
         # print(f"Distances ({len(distances)}): ", distances)
@@ -337,9 +341,11 @@ def process_pdf(pdf_path, page_range=None):
     if proc.broken_pdf():
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
             temp_output_path = temp_output.name
+            ocrmypdf.configure_logging(ocrmypdf.Verbosity.quiet)
             ocrmypdf.ocr(pdf_path, temp_output_path, l='ron',
                          invalidate_digital_signatures=True,
-                         force_ocr=True, deskew=True)
+                         force_ocr=True, deskew=True,
+                         progress_bar=False)
             proc = PdfProcessor(temp_output_path, page_range)
 
     return proc
