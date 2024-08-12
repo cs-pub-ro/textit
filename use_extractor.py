@@ -6,6 +6,7 @@ import gzip
 from tqdm import tqdm
 from typing import Dict, Any
 import multiprocessing as mp
+import hashlib
 
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
@@ -39,6 +40,14 @@ def get_file_type(file_path):
     except FileNotFoundError:
         print("Error: 'file' command not found")
         return None
+
+
+def get_output_name(input_path: str) -> str:
+    pathhash = hashlib.md5(input_path.encode("utf-8")).hexdigest()
+    bname = os.path.basename(input_path)
+    output_filename = os.path.splitext(bname)[0] + f"-{pathhash}" + '.json'
+    return output_filename
+
 
 def process_file(file_path: str, output_dir: str) -> None:
 
@@ -74,9 +83,10 @@ def process_file(file_path: str, output_dir: str) -> None:
 
         result['raw_content'] = '\n'.join(text)
 
-         # Write the result to a temporary file and then rename it
-        output_file_tmp = os.path.join(output_dir, f"{title}.json.tmp")
-        output_file_final = os.path.join(output_dir, f"{title}.json")
+        # Write the result to a temporary file and then rename it
+        basename = os.path.splitext(get_output_name(file_path))[0]
+        output_file_tmp = os.path.join(output_dir, f"{basename}.json.tmp")
+        output_file_final = os.path.join(output_dir, f"{basename}.json")
         with open(output_file_tmp, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
         os.rename(output_file_tmp, output_file_final)
@@ -87,7 +97,7 @@ def main():
     parser = argparse.ArgumentParser(description="Extract text from files in a directory")
     parser.add_argument("input_dir", help="Path to the input directory")
     parser.add_argument("output_dir", help="Path to the output .json.gz file")
-    parser.add_argument("--num_processes", type=int, default=mp.cpu_count(), 
+    parser.add_argument("--num_processes", type=int, default=mp.cpu_count(),
                         help="Number of processes to use (default: number of CPU cores)")
     args = parser.parse_args()
 
@@ -97,18 +107,17 @@ def main():
     for root, _, files in os.walk(args.input_dir):
         for file in files:
             input_file_path = os.path.join(root, file)
-            output_file_name = os.path.splitext(file)[0] + '.json'
-            output_file_path = os.path.join(args.output_dir, output_file_name)
-            
+            output_filename = get_output_name(input_file_path)
+            output_file_path = os.path.join(args.output_dir, output_filename)
             if not os.path.exists(output_file_path):
                 file_list.append(input_file_path)
             else:
                 print(f'File {input_file_path} already processed')
 
     with mp.Pool(processes=args.num_processes) as pool:
-        results = list(tqdm(pool.starmap(process_file, [(file, args.output_dir) for file in file_list]), 
-                            total=len(file_list), 
-                            desc="Processing files", 
+        results = list(tqdm(pool.starmap(process_file, [(file, args.output_dir) for file in file_list]),
+                            total=len(file_list),
+                            desc="Processing files",
                             unit="file"))
 
 if __name__ == "__main__":
