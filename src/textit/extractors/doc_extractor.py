@@ -17,8 +17,9 @@ def doc_handler(file_path: str, metadata: Metadata) -> Result[List[str]]:
 
             # Run the LibreOffice command
             try:
-                result = subprocess.run(["soffice", "--headless", "--convert-to", "txt:Text", file_path], 
-                                        check=True, capture_output=True, text=True)
+                result = subprocess.run(["soffice", "--headless", "--invisible", "--nodefault", "--norestore", "--convert-to", "txt:Text", file_path], 
+                                        check=True, capture_output=True, text=True, timeout=10)
+            print(f'Processed {file_path} in 
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(f"Error converting file - {file_path}: {e.stderr}")
             
