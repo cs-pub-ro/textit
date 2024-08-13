@@ -18,3 +18,9 @@ The following code turns all the files from `tests/fixtures` int json files in `
 ```Bash
 python use_extractor.py tests/fixtures  extracted_text/
 ```
+
+To write the files in a two level directory structure based on the hash of the file:
+
+```
+--use_hash_directories
+```

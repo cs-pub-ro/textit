@@ -66,7 +66,7 @@ def compute_sha1(file_path):
             sha1.update(chunk)
     return sha1.hexdigest()
 
-def process_file(file_path: str, output_dir: str) -> None:
+def process_file(file_path: str, output_dir: str, use_hash_directories: bool) -> None:
     extractor = TextExtractor()
     extractor.add_processor(text_repair)
     extractor.add_processor(quality_filter)
@@ -97,7 +97,9 @@ def process_file(file_path: str, output_dir: str) -> None:
             "extract_version": textit.version.__version__
         }
 
-        result['digest'] = 'sha1:' + compute_sha1(file_path) 
+        file_digest = compute_sha1(file_path) 
+
+        result['digest'] = 'sha1:' + file_digest
 
         res_metadata = {}
 
@@ -114,6 +116,14 @@ def process_file(file_path: str, output_dir: str) -> None:
 
         result = {**result, 'metadata': {**metadata.__dict__}}
 
+        # Determine the output directory
+        if use_hash_directories:
+            dir1 = file_digest[:2]
+            dir2 = file_digest[2:4]
+            output_dir = os.path.join(output_dir, dir1, dir2)
+
+        os.makedirs(output_dir, exist_ok=True)
+
         # Write the result to a temporary file and then rename it
         basename = os.path.splitext(get_output_name(file_path))[0]
         output_file_tmp = os.path.join(output_dir, f"{basename}.json.tmp")
@@ -128,14 +138,17 @@ def process_file(file_path: str, output_dir: str) -> None:
 def process_file_wrapper(arg):
     # For some reason we can't make this anonymous or local because someone
     # wants to pickle it.
-    file_path, output_dir = arg
-    return process_file(file_path, output_dir)
+    file_path, output_dir, use_hash_directories = arg
+    return process_file(file_path, output_dir, use_hash_directories)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Extract text from files in a directory")
     parser.add_argument("input_dir", help="Path to the input directory")
     parser.add_argument("output_dir", help="Path to the output .json.gz file")
+    parser.add_argument("--hash_based_partition", help="Partition the output dir based on the ", type=bool, default=False)
+    parser.add_argument("--use_hash_directories", action="store_true",
+                        help="Use hash-based directory structure for output (default: False)")
     parser.add_argument("--num_processes", type=int, default=mp.cpu_count(),
                         help="Number of processes to use (default: number of CPU cores)")
     args = parser.parse_args()
@@ -147,7 +160,15 @@ def main():
         for file in files:
             input_file_path = os.path.join(root, file)
             output_filename = get_output_name(input_file_path)
-            output_file_path = os.path.join(args.output_dir, output_filename)
+            output_dir = args.output_dir
+            # Determine the output directory
+            if args.use_hash_directories:
+                file_digest = compute_sha1(input_file_path) 
+                dir1 = file_digest[:2]
+                dir2 = file_digest[2:4]
+                output_dir = os.path.join(output_dir, dir1, dir2)
+
+            output_file_path = os.path.join(output_dir, output_filename)
             if not os.path.exists(output_file_path):
                 file_list.append(input_file_path)
             else:
@@ -155,7 +176,7 @@ def main():
 
     with mp.Pool(processes=args.num_processes) as pool:
         with tqdm(total=len(file_list), desc="Extracting text", unit="file") as pbar:
-            for _ in pool.imap_unordered(process_file_wrapper, [(file, args.output_dir) for file in file_list]):
+            for _ in pool.imap_unordered(process_file_wrapper, [(file, args.output_dir, args.use_hash_directories) for file in file_list]):
                 pbar.update()
 
 if __name__ == "__main__":
