@@ -64,7 +64,7 @@ class TextExtractor:
 
             # I think it's better to have the hash before processing because is
             # the text that has the least changes from the original material
-            newmetadata.digest = compute_sha1(full_text)
+            newmetadata.digest = 'sha1:' + compute_sha1(full_text)
             newmetadata.original_nlines = len(full_text.split('\n'))
         
         # Call the pipeline functions for text processing

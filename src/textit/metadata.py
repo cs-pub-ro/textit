@@ -28,6 +28,7 @@ class Metadata:
     nlines: Optional[int] = 0
     original_nlines: Optional[int] = 0
     version: Optional[str] = None
+    drop_reason: Optional[str] = None
 
     def __repr__(self):
         """For dynamically added class members."""

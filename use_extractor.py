@@ -57,6 +57,14 @@ def get_output_name(input_path: str) -> str:
 def json_default_serializer(obj):
     return obj.name
 
+import hashlib
+
+def compute_sha1(file_path):
+    sha1 = hashlib.sha1()
+    with open(file_path, 'rb') as file:
+        while chunk := file.read(8192):
+            sha1.update(chunk)
+    return sha1.hexdigest()
 
 def process_file(file_path: str, output_dir: str) -> None:
     extractor = TextExtractor()
@@ -88,8 +96,13 @@ def process_file(file_path: str, output_dir: str) -> None:
             "url": file_path,
             "extract_version": textit.version.__version__
         }
+
+        result['digest'] = 'sha1:' + compute_sha1(file_path) 
+
+        res_metadata = {}
+
         if metadata.digest is not None:
-            result['digest'] = metadata.digest
+            res_metadata['content_digest'] = metadata.digest
 
         if metadata.nlines is not None:
             result['nlines'] = metadata.nlines
@@ -97,8 +110,9 @@ def process_file(file_path: str, output_dir: str) -> None:
         if metadata.original_nlines is not None:
             result['original_nlines'] = metadata.original_nlines
 
-        result = {**result, **metadata.__dict__}
         result['raw_content'] = '\n'.join(text)
+
+        result = {**result, 'metadata': {**metadata.__dict__}}
 
         # Write the result to a temporary file and then rename it
         basename = os.path.splitext(get_output_name(file_path))[0]
