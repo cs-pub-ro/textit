@@ -8,7 +8,7 @@ from multiprocessing import Lock
 
 doc_lock = Lock()
 
-def doc_handler(file_path: str, metadata: Metadata) -> Result[List[str]]:
+def doc_handler(file_path: str, metadata: Metadata) -> tuple[Result[List[str]], Metadata]:
     try:
         # Sadly we can only process one doc at a time
         with doc_lock:
@@ -19,7 +19,6 @@ def doc_handler(file_path: str, metadata: Metadata) -> Result[List[str]]:
             try:
                 result = subprocess.run(["soffice", "--headless", "--invisible", "--nodefault", "--norestore", "--convert-to", "txt:Text", file_path], 
                                         check=True, capture_output=True, text=True, timeout=10)
-            print(f'Processed {file_path} in 
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(f"Error converting file - {file_path}: {e.stderr}")
             

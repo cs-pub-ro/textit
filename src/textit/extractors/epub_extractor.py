@@ -7,7 +7,7 @@ from ebooklib import epub
 
 from trafilatura import extract
 
-def epub_handler(file_path: str, metadata: Metadata) -> Result[List[str]]:
+def epub_handler(file_path: str, metadata: Metadata) -> tuple[Result[List[str]], Metadata]:
 	try:
 		book = epub.read_epub(file_path)
 		content = ""
@@ -18,6 +18,6 @@ def epub_handler(file_path: str, metadata: Metadata) -> Result[List[str]]:
 				text = extract(body_content)
 				if text is not None:
 					content += text
-		return Result.ok([content])
+		return Result.ok([content]), metadata
 	except Exception as e:
-		return Result.err(f"Error extracting text from EPUB: {str(e)}")
+		return Result.err(f"Error extracting text from EPUB: {str(e)}"), metadata

@@ -13,7 +13,7 @@ from textit.metadata import Metadata, FileType, DocumentClass
 from textit.helpers import Result
 
 # Type aliases
-HandlerFunction = Callable[[str, Metadata], Result[List[str]]]
+HandlerFunction = Callable[[str, Metadata], tuple[Result[List[str]], Metadata]]
 ProcessingFunction = Callable[[str], str]
 
 def compute_sha1(text):
@@ -42,7 +42,7 @@ class TextExtractor:
     def add_processor(self, processor: ProcessingFunction) -> None:
         self.processing_pipeline.append(processor)
 
-    def extract_text(self, file_path: str, metadata: Optional[Metadata] = None) -> (Result[List[str]], Metadata):
+    def extract_text(self, file_path: str, metadata: Optional[Metadata] = None) -> tuple[Result[List[str]], Metadata]:
         
         if metadata is None:
             metadata = Metadata()
@@ -55,7 +55,7 @@ class TextExtractor:
             )
 
         # Extract the text using the right handler
-        text = file_type_handler.and_then(lambda handler: handler(file_path, metadata))
+        text, newmetadata = file_type_handler.and_then(lambda handler: handler(file_path, metadata))
         
         # Add the digest of the entire text, might be used for exact
         # deduplication
@@ -64,18 +64,18 @@ class TextExtractor:
 
             # I think it's better to have the hash before processing because is
             # the text that has the least changes from the original material
-            metadata.digest = compute_sha1(full_text)
-            metadata.original_nlines = len(full_text.split('\n'))
+            newmetadata.digest = compute_sha1(full_text)
+            newmetadata.original_nlines = len(full_text.split('\n'))
         
         # Call the pipeline functions for text processing
         processed_text = text.map(self._process_text)
     
         if processed_text.is_ok():
             full_text = '\n'.join(processed_text.unwrap())
-            metadata.original_nlines = len(full_text.split('\n'))
+            newmetadata.original_nlines = len(full_text.split('\n'))
 
 
-        return (processed_text, metadata)
+        return (processed_text, newmetadata)
 
     def _determine_file_type(self, file_path: str, metadata: Metadata) -> Result[FileType]:
         if metadata.file_type:

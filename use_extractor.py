@@ -45,12 +45,15 @@ def get_file_type(file_path):
 def get_output_name(input_path: str) -> str:
     pathhash = hashlib.md5(input_path.encode("utf-8")).hexdigest()
     bname = os.path.basename(input_path)
-    output_filename = os.path.splitext(bname)[0] + f"-{pathhash}" + '.json'
+    output_filename = os.path.splitext(bname)[0] + f".{pathhash}" + '.json'
     return output_filename
 
 
-def process_file(file_path: str, output_dir: str) -> None:
+def json_default_serializer(obj):
+    return obj.name
 
+
+def process_file(file_path: str, output_dir: str) -> None:
     extractor = TextExtractor()
     extractor.add_processor(text_repair)
     extractor.add_processor(quality_filter)
@@ -81,6 +84,7 @@ def process_file(file_path: str, output_dir: str) -> None:
         if metadata.original_nlines is not None:
             result['original_nlines'] = metadata.original_nlines
 
+        result = {**result, **metadata.__dict__}
         result['raw_content'] = '\n'.join(text)
 
         # Write the result to a temporary file and then rename it
@@ -88,10 +92,18 @@ def process_file(file_path: str, output_dir: str) -> None:
         output_file_tmp = os.path.join(output_dir, f"{basename}.json.tmp")
         output_file_final = os.path.join(output_dir, f"{basename}.json")
         with open(output_file_tmp, 'w', encoding='utf-8') as f:
-            json.dump(result, f, ensure_ascii=False, indent=2)
+            json.dump(result, f, ensure_ascii=False, indent=2, default=json_default_serializer)
         os.rename(output_file_tmp, output_file_final)
     else:
         return None
+
+
+def process_file_wrapper(arg):
+    # For some reason we can't make this anonymous or local because someone
+    # wants to pickle it.
+    file_path, output_dir = arg
+    return process_file(file_path, output_dir)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Extract text from files in a directory")
@@ -115,10 +127,9 @@ def main():
                 print(f'File {input_file_path} already processed')
 
     with mp.Pool(processes=args.num_processes) as pool:
-        results = list(tqdm(pool.starmap(process_file, [(file, args.output_dir) for file in file_list]),
-                            total=len(file_list),
-                            desc="Processing files",
-                            unit="file"))
+        with tqdm(total=len(file_list), desc="Extracting text", unit="file") as pbar:
+            for _ in pool.imap_unordered(process_file_wrapper, [(file, args.output_dir) for file in file_list]):
+                pbar.update()
 
 if __name__ == "__main__":
     main()

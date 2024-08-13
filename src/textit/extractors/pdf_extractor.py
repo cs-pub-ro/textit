@@ -338,6 +338,7 @@ class PdfProcessor(object):
 
 def process_pdf(pdf_path, page_range=None):
     proc = PdfProcessor(pdf_path, page_range)
+    ocr = False
     if proc.broken_pdf():
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
             temp_output_path = temp_output.name
@@ -347,8 +348,9 @@ def process_pdf(pdf_path, page_range=None):
                          force_ocr=True, deskew=True,
                          progress_bar=False)
             proc = PdfProcessor(temp_output_path, page_range)
+            ocr = True
 
-    return proc
+    return proc, ocr
 
 
 def line_cleaner(doc_info):
@@ -469,15 +471,19 @@ def line_cleaner(doc_info):
     return [text]
 
 
-def pdf_handler(file_path: str, metadata: Metadata) -> Result[List[str]]:
+def pdf_handler(file_path: str, metadata: Metadata) -> tuple[Result[List[str]], Metadata]:
     try:
-        proc = process_pdf(file_path)
+        proc, ocr = process_pdf(file_path)
+        if ocr:
+            meta = metadata
+            meta.ocr = True
+
         doc_info = proc.get_contents()
         extracted_text = line_cleaner(doc_info)
-        return Result.ok(extracted_text)
+        return (Result.ok(extracted_text), metadata)
     except Exception as e:
         estr = "".join(traceback.format_exception(e))
-        return Result.err(f"Error extracting text from PDF: {estr}")
+        return (Result.err(f"Error extracting text from PDF: {estr}"), metadata)
 
 
 if __name__ == "__main__":
