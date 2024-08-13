@@ -12,7 +12,7 @@ import hashlib
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 from textit.text_extractor import TextExtractor, Metadata, FileType, DocumentClass
 from textit.processors import text_repair, quality_filter, language_identification
-from textit.helpers import handle_result
+from textit.helpers import handle_result, logger
 import textit.version
 
 import subprocess
@@ -35,15 +35,20 @@ def get_file_type(file_path):
         else:
             return None
     except subprocess.CalledProcessError as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
         return None
     except FileNotFoundError:
-        print("Error: 'file' command not found")
+        logger.error("Error: 'file' command not found")
         return None
 
 
 def get_output_name(input_path: str) -> str:
-    pathhash = hashlib.md5(input_path.encode("utf-8")).hexdigest()
+    try:
+        pathhash = hashlib.md5(input_path.encode("utf-8")).hexdigest()
+    except UnicodeEncodeError as e:
+        logger.warning(f"UnicodeEncodeError for '{repr(input_path)}':\n\t{e}")
+        pathhash = hashlib.md5(repr(input_path).encode("utf-8")).hexdigest()
+
     bname = os.path.basename(input_path)
     output_filename = os.path.splitext(bname)[0] + f".{pathhash}" + '.json'
     return output_filename
