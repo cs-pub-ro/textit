@@ -1,6 +1,7 @@
 import logging
 import os
 from typing import Generic, TypeVar, Callable, Optional
+import sys
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -12,17 +13,21 @@ if not os.path.exists(log_dir):
 
 # Create a logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.INFO)
 
 # Check if the logger already has handlers to avoid duplicate logging
 if not logger.handlers:
     # Add a file handler with the PID in the filename
     pid = os.getpid()
     file_handler = logging.FileHandler(f"{log_dir}/{pid}.err")
-    file_handler.setLevel(logging.ERROR)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
+
+    # Add a stream handler to print to stderr
+    stream_handler = logging.StreamHandler(sys.stderr)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
 
     # Prevent the logger from propagating messages to the root logger
     logger.propagate = False

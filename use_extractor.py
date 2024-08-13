@@ -129,7 +129,7 @@ def main():
             if not os.path.exists(output_file_path):
                 file_list.append(input_file_path)
             else:
-                print(f'File {input_file_path} already processed')
+                logger.info(f'File {input_file_path} already processed')
 
     with mp.Pool(processes=args.num_processes) as pool:
         with tqdm(total=len(file_list), desc="Extracting text", unit="file") as pbar:
