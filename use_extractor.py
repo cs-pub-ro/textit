@@ -79,11 +79,11 @@ def process_file(file_path: str, output_dir: str, use_hash_directories: bool) ->
     assert(metadata is not None)
 
     pdir, basename = os.path.split(file_path)
+
     # We will append stuff to the filename, so we must be sure not to cross
     # over the maximum limit (which is system dependent, but 255 to be real).
     # We'll add a base16 md5 and a "json.tmp" extension.
-    if len(basename) > 210:
-        basename = basename[:210]
+    basename = basename[:210]
 
     file_path = os.path.join(pdir, basename)
     title = os.path.splitext(basename)[0]
