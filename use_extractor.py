@@ -97,49 +97,48 @@ def process_file(file_path: str, output_dir: str, use_hash_directories: bool) ->
 
     if result.is_ok():
         text = result.unwrap()
-
-        result = {
-            "title": title,
-            "url": file_path,
-            "extract_version": textit.version.__version__
-        }
-
-        file_digest = compute_sha1(file_path)
-
-        result['digest'] = 'sha1:' + file_digest
-
-        res_metadata = {}
-
-        if metadata.digest is not None:
-            res_metadata['content_digest'] = metadata.digest
-
-        if metadata.nlines is not None:
-            result['nlines'] = metadata.nlines
-
-        if metadata.original_nlines is not None:
-            result['original_nlines'] = metadata.original_nlines
-
-        result['raw_content'] = '\n'.join(text)
-
-        result = {**result, 'metadata': {**metadata.__dict__}}
-
-        # Determine the output directory
-        if use_hash_directories:
-            dir1 = file_digest[:2]
-            dir2 = file_digest[2:4]
-            output_dir = os.path.join(output_dir, dir1, dir2)
-
-        os.makedirs(output_dir, exist_ok=True)
-
-        # Write the result to a temporary file and then rename it
-        basename = os.path.splitext(get_output_name(file_path))[0]
-        output_file_tmp = os.path.join(output_dir, f"{basename}.json.tmp")
-        output_file_final = os.path.join(output_dir, f"{basename}.json")
-        with open(output_file_tmp, 'w', encoding='utf-8') as f:
-            json.dump(result, f, ensure_ascii=False, indent=2, default=json_default_serializer)
-        os.rename(output_file_tmp, output_file_final)
     else:
-        return None
+        text = ""
+
+    result = {
+        "title": title,
+        "url": file_path,
+        "extract_version": textit.version.__version__
+    }
+
+    file_digest = compute_sha1(file_path)
+
+    result['digest'] = 'sha1:' + file_digest
+
+    res_metadata = {}
+
+    if metadata.digest is not None:
+        res_metadata['content_digest'] = metadata.digest
+
+    if metadata.nlines is not None:
+        result['nlines'] = metadata.nlines
+
+    if metadata.original_nlines is not None:
+        result['original_nlines'] = metadata.original_nlines
+
+    result = {**result, **metadata.__dict__}
+    result['raw_content'] = '\n'.join(text)
+
+    # Determine the output directory
+    if use_hash_directories:
+        dir1 = file_digest[:2]
+        dir2 = file_digest[2:4]
+        output_dir = os.path.join(output_dir, dir1, dir2)
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Write the result to a temporary file and then rename it
+    basename = os.path.splitext(get_output_name(file_path))[0]
+    output_file_tmp = os.path.join(output_dir, f"{basename}.json.tmp")
+    output_file_final = os.path.join(output_dir, f"{basename}.json")
+    with open(output_file_tmp, 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False, indent=2, default=json_default_serializer)
+    os.rename(output_file_tmp, output_file_final)
 
 
 def process_file_wrapper(arg):
