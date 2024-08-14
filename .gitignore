@@ -1,5 +1,8 @@
+# We have a standard output folder and a logs folder
+output/
+logs/
+
 # Byte-compiled / optimized / DLL files
-logs
 __pycache__/
 *.py[cod]
 *$py.class
