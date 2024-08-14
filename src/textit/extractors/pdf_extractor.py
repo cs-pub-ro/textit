@@ -490,6 +490,6 @@ if __name__ == "__main__":
     import sys
     assert len(sys.argv) == 3
     pdf_path = sys.argv[1]
-    result = pdf_handler(pdf_path, Metadata())
+    result, _ = pdf_handler(pdf_path, Metadata())
     with open(sys.argv[2], "w") as fout:
         fout.write(result.unwrap()[0])
