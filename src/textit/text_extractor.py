@@ -10,7 +10,7 @@ from textit.extractors import pdf_extractor, doc_extractor, epub_extractor
 from textit.extractors import html_extractor, mobi_extractor
 
 from textit.metadata import Metadata, FileType, DocumentClass
-from textit.helpers import Result
+from textit.helpers import Result, getLogger
 
 # Type aliases
 HandlerFunction = Callable[[str, Metadata], tuple[Result[List[str]], Metadata]]
@@ -57,6 +57,9 @@ class TextExtractor:
         # Extract the text using the right handler
         text, newmetadata = file_type_handler.and_then(lambda handler: handler(file_path, metadata))
         
+        # Call the pipeline functions for text processing
+        processed_text = text.map(self._process_text)
+
         # Add the digest of the entire text, might be used for exact
         # deduplication
         if text.is_ok():
@@ -66,10 +69,10 @@ class TextExtractor:
             # the text that has the least changes from the original material
             newmetadata.digest = 'sha1:' + compute_sha1(full_text)
             newmetadata.original_nlines = len(full_text.split('\n'))
-        
-        # Call the pipeline functions for text processing
-        processed_text = text.map(self._process_text)
-    
+        else:
+            logger = getLogger()
+            logger.error(text._error)
+
         if processed_text.is_ok():
             full_text = '\n'.join(processed_text.unwrap())
             newmetadata.original_nlines = len(full_text.split('\n'))

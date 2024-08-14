@@ -1,36 +1,52 @@
 import logging
 import os
 from typing import Generic, TypeVar, Callable, Optional
+import traceback
 import sys
 
 T = TypeVar('T')
 U = TypeVar('U')
 
-# Set up logging
-log_dir = "logs"
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
 
-# Create a logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+def setup_logging(log_dir: str,
+                  stderr: bool = False,
+                  level = logging.INFO):
+    os.makedirs(log_dir, exist_ok=True)
 
-# Check if the logger already has handlers to avoid duplicate logging
-if not logger.handlers:
-    # Add a file handler with the PID in the filename
+    # Create a logger
+    global logger
     pid = os.getpid()
-    file_handler = logging.FileHandler(f"{log_dir}/{pid}.err")
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    logger = logging.getLogger(str(pid))
+    logger.setLevel(level)
 
-    # Add a stream handler to print to stderr
-    stream_handler = logging.StreamHandler(sys.stderr)
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
+    # Check if the logger already has handlers to avoid duplicate logging
+    if not logger.handlers:
+        logger_format = '[%(asctime)s][%(name)s][%(levelname)s]: %(message)s'
+        # Add a file handler with the PID in the filename
+        file_handler = logging.FileHandler(f"{log_dir}/{pid}.err")
+        formatter = logging.Formatter(logger_format)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
-    # Prevent the logger from propagating messages to the root logger
-    logger.propagate = False
+        # Add a stream handler to print to stderr
+        stream_handler = logging.StreamHandler(sys.stderr)
+        stderr_formatter = logging.Formatter(logger_format)
+        stream_handler.setFormatter(stderr_formatter)
+        logger.addHandler(stream_handler)
+
+        # Prevent the logger from propagating messages to the root logger
+        logger.propagate = False
+
+
+def getLogger():
+    spid = str(os.getpid())
+    return logging.getLogger(spid)
+
+
+def format_exception(e):
+    estr = "".join(traceback.format_exception(e))
+    return f"\n```\n{estr}\n```\n\n"
+
 
 class Result(Generic[T]):
     def __init__(self, value: Optional[T], error: Optional[str]):
@@ -43,7 +59,6 @@ class Result(Generic[T]):
 
     @classmethod
     def err(cls, error: str) -> 'Result[T]':
-        logger.error(f"Error occurred: {error}")
         return cls(None, error)
 
     def is_ok(self) -> bool:

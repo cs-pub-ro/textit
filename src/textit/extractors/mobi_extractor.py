@@ -1,6 +1,6 @@
 from typing import List
 from textit.metadata import Metadata
-from textit.helpers import Result
+from textit.helpers import Result, format_exception
 
 import tempfile
 import shutil
@@ -60,5 +60,6 @@ def mobi_handler(file_path: str, metadata: Metadata) -> tuple[Result[List[str]],
             shutil.rmtree(temp_folder)
             raise FileNotFoundError("No HTML file found in the unpacked .mobi content.")
     except Exception as e:
-        return Result.err(f"Error extracting text from MOBI - {file_path}: {str(e)}"), metadata
+        estr = format_exception(e)
+        return Result.err(f"Error extracting text from MOBI at '{file_path}':{estr}"), metadata
 

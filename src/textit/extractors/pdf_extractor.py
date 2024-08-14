@@ -19,7 +19,7 @@ import logging
 import traceback
 
 from textit.metadata import Metadata
-from textit.helpers import Result
+from textit.helpers import Result, format_exception
 
 
 # Characters that are "OK" to be extracted from a Romanian text.
@@ -482,8 +482,8 @@ def pdf_handler(file_path: str, metadata: Metadata) -> tuple[Result[List[str]], 
         extracted_text = line_cleaner(doc_info)
         return (Result.ok(extracted_text), metadata)
     except Exception as e:
-        estr = "".join(traceback.format_exception(e))
-        return (Result.err(f"Error extracting text from PDF: {estr}"), metadata)
+        estr = format_exception(e)
+        return (Result.err(f"Error extracting text from PDF at '{file_path}':{estr}"), metadata)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 from typing import List
 from textit.metadata import Metadata
-from textit.helpers import Result
+from textit.helpers import Result, format_exception
 
 import subprocess
 import os
@@ -44,4 +44,5 @@ def doc_handler(file_path: str, metadata: Metadata) -> tuple[Result[List[str]], 
         os.remove(output_file)
         return Result.ok([text_content]), metadata
     except Exception as e:
-        return Result.err(f"Error extracting text from DOC/X at {file_path}: {str(e)}"), metadata
+        estr = format_exception(e)
+        return Result.err(f"Error extracting text from DOC/X at '{file_path}':{estr}"), metadata

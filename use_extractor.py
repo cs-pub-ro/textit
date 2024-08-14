@@ -7,15 +7,20 @@ from tqdm import tqdm
 from typing import Dict, Any
 import multiprocessing as mp
 import hashlib
+import traceback
 
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 from textit.text_extractor import TextExtractor, Metadata, FileType, DocumentClass
 from textit.processors import text_repair, quality_filter, language_identification
-from textit.helpers import handle_result, logger
+from textit.helpers import handle_result, setup_logging, format_exception, getLogger
 import textit.version
 
 import subprocess
+
+
+def init_proc(args):
+    setup_logging(args.logdir, stderr=args.logstderr, level=args.loglevel)
 
 
 def get_file_type(file_path):
@@ -35,11 +40,13 @@ def get_file_type(file_path):
         else:
             return None
     except subprocess.CalledProcessError as e:
-        logger.error(f"Error: {e}")
+        estr = "".join(traceback.format_exception(e))
+        logger.error(f"Couldn't get file type for '{file_path}':\n```\n{e}\n```\n\n")
         return None
-    except FileNotFoundError:
-        logger.error("Error: 'file' command not found")
-        return None
+    # XXX Dubious
+    # except FileNotFoundError:
+        # logger.error("Error: 'file' command not found")
+        # return None
 
 
 def get_output_name(input_path: str) -> str:
@@ -97,7 +104,7 @@ def process_file(file_path: str, output_dir: str, use_hash_directories: bool) ->
             "extract_version": textit.version.__version__
         }
 
-        file_digest = compute_sha1(file_path) 
+        file_digest = compute_sha1(file_path)
 
         result['digest'] = 'sha1:' + file_digest
 
@@ -139,7 +146,11 @@ def process_file_wrapper(arg):
     # For some reason we can't make this anonymous or local because someone
     # wants to pickle it.
     file_path, output_dir, use_hash_directories = arg
-    return process_file(file_path, output_dir, use_hash_directories)
+    try:
+        result = process_file(file_path, output_dir, use_hash_directories)
+    except Exception as e:
+        estr = format_exception(e)
+        logger.error(f"Exception raised when processing '{file_path}':{estr}")
 
 
 def main():
@@ -151,7 +162,18 @@ def main():
                         help="Use hash-based directory structure for output (default: False)")
     parser.add_argument("--num_processes", type=int, default=mp.cpu_count(),
                         help="Number of processes to use (default: number of CPU cores)")
+    parser.add_argument("--logdir", type=str, default="logs",
+                        help="Name of the log directory (default: %(default)s)")
+    parser.add_argument("--loglevel", type=str, default="INFO",
+                        help="Lowest log level for which to record messages (default: %(default)s)")
+    parser.add_argument("--logstderr", action="store_true",
+                        help="Also print the logs to stderr")
+
     args = parser.parse_args()
+
+    setup_logging(args.logdir, stderr=args.logstderr, level=args.loglevel)
+    global logger
+    logger = getLogger()
 
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -163,7 +185,7 @@ def main():
             output_dir = args.output_dir
             # Determine the output directory
             if args.use_hash_directories:
-                file_digest = compute_sha1(input_file_path) 
+                file_digest = compute_sha1(input_file_path)
                 dir1 = file_digest[:2]
                 dir2 = file_digest[2:4]
                 output_dir = os.path.join(output_dir, dir1, dir2)
@@ -172,12 +194,13 @@ def main():
             if not os.path.exists(output_file_path):
                 file_list.append(input_file_path)
             else:
-                logger.info(f'File {input_file_path} already processed')
+                logger.info(f"File '{input_file_path}' already processed")
 
-    with mp.Pool(processes=args.num_processes) as pool:
+    with mp.Pool(initializer=init_proc, initargs=[args], processes=args.num_processes) as pool:
         with tqdm(total=len(file_list), desc="Extracting text", unit="file") as pbar:
             for _ in pool.imap_unordered(process_file_wrapper, [(file, args.output_dir, args.use_hash_directories) for file in file_list]):
                 pbar.update()
+
 
 if __name__ == "__main__":
     main()
