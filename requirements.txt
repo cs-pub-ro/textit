@@ -1,12 +1,12 @@
 EbookLib
 fasttext
 mobi
-numpy
+numpy>=1.26.4,<2.0.0
 ocrmypdf
 pypdfium2
 scikit_learn
 scipy
 setuptools
 tqdm
-tqdm
 trafilatura
+gs
