@@ -3,8 +3,8 @@ import fasttext.util
 from pkg_resources import resource_filename
 
 
-# model_path = resource_filename('textit.processors.lang_id', 'lid.176.bin')
-model_path = "/workspace/fasttext/lid.176.bin"
+model_path = resource_filename('textit.processors.lang_id', 'lid.176.bin')
+#model_path = "/workspace/fasttext/lid.176.bin"
 model = fasttext.load_model(model_path)
 
 def get_romanian_score(text):
