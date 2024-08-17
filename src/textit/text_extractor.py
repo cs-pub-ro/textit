@@ -22,6 +22,7 @@ def compute_sha1(text):
     sha1_hash.update(text_bytes)
     return sha1_hash.hexdigest()
 
+
 class TextExtractor:
     def __init__(self):
         self.handlers: Dict[FileType, HandlerFunction] = {
@@ -56,38 +57,35 @@ class TextExtractor:
 
         # Extract the text using the right handler
         text, newmetadata = file_type_handler.and_then(lambda handler: handler(file_path, metadata))
-        
-        # Call the pipeline functions for text processing
-        processed_text = text.map(self._process_text)
-
-        # Add the digest of the entire text, might be used for exact
-        # deduplication
-        if text.is_ok():
-            full_text = '\n'.join(text.unwrap())
-
-            # I think it's better to have the hash before processing because is
-            # the text that has the least changes from the original material
-            newmetadata.digest = 'sha1:' + compute_sha1(full_text)
-            newmetadata.original_nlines = len(full_text.split('\n'))
-        else:
+        if text.is_err():
             logger = getLogger()
             logger.error(text._error)
             newmetadata.drop_reason = "text-extraction-failure"
+            return "", newmetadata
+
+        full_text = '\n'.join(text.unwrap())
+
+        # I think it's better to have the hash before processing because is
+        # the text that has the least changes from the original material
+        newmetadata.digest = 'sha1:' + compute_sha1(full_text)
+
+        # Call the pipeline functions for text processing
+        processed_text = text.map(self._process_text)
 
         if processed_text.is_ok():
             full_text = '\n'.join(processed_text.unwrap())
-            newmetadata.original_nlines = len(full_text.split('\n'))
 
+        newmetadata.original_nlines = len(full_text.split('\n'))
 
         return (processed_text, newmetadata)
 
     def _determine_file_type(self, file_path: str, metadata: Metadata) -> Result[FileType]:
         if metadata.file_type:
             return Result.ok(metadata.file_type)
-        
+
         _, extension = os.path.splitext(file_path)
         extension = extension.lower()[1:]  # Remove the leading dot
-        
+
         extension_to_type = {
             'pdf': FileType.PDF,
             'doc': FileType.DOC,
@@ -98,11 +96,11 @@ class TextExtractor:
             'mobi': FileType.MOBI,
             'epub': FileType.EPUB
         }
-        
+
         file_type = extension_to_type.get(extension)
         if file_type is None:
             return Result.err(f"Unsupported file extension for {file_path}: {extension}")
-        
+
         return Result.ok(file_type)
 
     def _get_handler(self, file_type: FileType) -> Result[HandlerFunction]:
