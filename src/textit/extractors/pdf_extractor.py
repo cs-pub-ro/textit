@@ -17,6 +17,7 @@ import itertools
 import tempfile
 import logging
 import traceback
+import subprocess
 
 from textit.metadata import Metadata
 from textit.helpers import Result, format_exception
@@ -210,11 +211,14 @@ class Page(object):
             return (-t, l, b, r)
 
         self.bboxes = []
+        bboxes_set = set()  # to keep them unique
         for obj in self.page.get_objects():
             if obj.type == 1:  # text type
                 bbox = obj.get_pos()
-                #bisect.insort(self.bboxes, bbox, key=bbox_sort_key)
-                self.bboxes.append(bbox)
+                if bbox not in bboxes_set:
+                    bisect.insort(self.bboxes, bbox, key=bbox_sort_key)
+                    bboxes_set.add(bbox)
+                    #self.bboxes.append(bbox)
 
     def _perform_dbscan(self):
         distances = pairwise_distances(self.bboxes, metric=rectangle_distance)
@@ -336,21 +340,38 @@ class PdfProcessor(object):
         return self._broken
 
 
+def apply_ocr(pdf_path, page_range=None):
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
+        temp_output_path = temp_output.name
+        ocrmypdf.ocr(pdf_path, temp_output_path, l='ron',
+                     invalidate_digital_signatures=True,
+                     force_ocr=True, deskew=True,
+                     progress_bar=False)
+
+        proc = PdfProcessor(temp_output_path, page_range)
+
+    return proc
+
+
+def decrypt_pdf(inpath, outpath):
+    subprocess.run(["qpdf", "--decrypt", inpath, outpath])
+
+
 def process_pdf(pdf_path, page_range=None):
     proc = PdfProcessor(pdf_path, page_range)
-    ocr = False
+    procmeta = {}
     if proc.broken_pdf():
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
-            temp_output_path = temp_output.name
-            ocrmypdf.configure_logging(ocrmypdf.Verbosity.quiet)
-            ocrmypdf.ocr(pdf_path, temp_output_path, l='ron',
-                         invalidate_digital_signatures=True,
-                         force_ocr=True, deskew=True,
-                         progress_bar=False)
-            proc = PdfProcessor(temp_output_path, page_range)
-            ocr = True
+        procmeta["ocr"] = True
+        try:
+            proc = apply_ocr(pdf_path, page_range)
+        except ocrmypdf.exceptions.EncryptedPdfError:
+            procmeta["decrypted"] = True
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
+                temp_output_path = temp_output.name
+                decrypt_pdf(pdf_path, temp_output_path)
+                proc = apply_ocr(temp_output_path, page_range)
 
-    return proc, ocr
+    return proc, procmeta
 
 
 def line_cleaner(doc_info):
@@ -472,11 +493,11 @@ def line_cleaner(doc_info):
 
 
 def pdf_handler(file_path: str, metadata: Metadata) -> tuple[Result[List[str]], Metadata]:
+    ocrmypdf.configure_logging(ocrmypdf.Verbosity.quiet)
     try:
-        proc, ocr = process_pdf(file_path)
-        if ocr:
-            meta = metadata
-            meta.ocr = True
+        proc, procmeta = process_pdf(file_path)
+        for k, v in procmeta.items():
+            setattr(metadata, k, v)
 
         doc_info = proc.get_contents()
         extracted_text = line_cleaner(doc_info)
@@ -490,6 +511,7 @@ if __name__ == "__main__":
     import sys
     assert len(sys.argv) == 3
     pdf_path = sys.argv[1]
-    result, _ = pdf_handler(pdf_path, Metadata())
+    result, metadata = pdf_handler(pdf_path, Metadata())
+    print("Metadata:\n", metadata)
     with open(sys.argv[2], "w") as fout:
         fout.write(result.unwrap()[0])
