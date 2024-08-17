@@ -26,8 +26,15 @@ from textit.helpers import Result, format_exception
 # Characters that are "OK" to be extracted from a Romanian text.
 # XXX Besides the obvious ones, the rest are added based on observations on
 # arbitrary (manually selected) samples.
-OK_CHARS = set(string.printable + "ăĂâÂîÎșȘțȚşŞŢţ©–…·►◄«»°¬—×›•❤←→„”")
-
+#
+# If there aren't enough "OK" characters, the ocr will be invoked, which is
+# expensive and riddled with potential exceptions.
+# So we would like to invoke it as less as possible; thus we will include some
+# foreign languages and hope that the contents will be later cleared down the
+# pipeline by langid.
+# Hungarian is a common language that might sneak in, so for now we add those.
+OK_CHARS = set(string.printable + "ăĂâÂîÎșȘțȚşŞŢţ©–…·►◄«»°¬—×›•❤←→„”" + \
+        "ÁÉÍÓÖŐÚÜŰáéíóöőúüű")  # Hungarian-specific characters
 
 def remove_references(input_text):
     output_text = re.sub(r"( ?(\[[0-9]+((-?[0-9]+)?(, ?[0-9]+)*)\])+)|( ?\([0-9]+((-?[0-9]+)?(, ?[0-9]+)*)\))|( ?\([^\)]*[0-9][0-9][0-9][0-9].?\))", "", input_text)
