@@ -61,7 +61,7 @@ class TextExtractor:
             logger = getLogger()
             logger.error(text._error)
             newmetadata.drop_reason = "text-extraction-failure"
-            return "", newmetadata
+            return Result.ok([""]), newmetadata
 
         full_text = '\n'.join(text.unwrap())
 
