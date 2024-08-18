@@ -85,29 +85,24 @@ def process_file(file_path: str, output_dir: str, use_hash_directories: bool) ->
     file_digest = compute_sha1(file_path)
 
     metadata = Metadata(file_type=file_type, document_class=DocumentClass.BOOK)
+    pdir, basename = os.path.split(file_path)
+    title = os.path.splitext(basename)[0]
 
     # While we can deal with non-UTF-8 filenames, other tools down the line,
     # may not be able to, so here we do first copy a file to temporary, UTF-8
     # path.
+    url = file_path
     try:
         file_path.encode("utf-8")
         result, metadata = extractor.extract_text(file_path, metadata)
     except UnicodeEncodeError:
+        url = repr(file_path)
+        title = repr(title)
         with tempfile.NamedTemporaryFile(suffix=".pdf") as temp_output:
             shutil.copy2(file_path, temp_output.name)
             result, metadata = extractor.extract_text(temp_output.name, metadata)
 
     assert(metadata is not None)
-
-    pdir, basename = os.path.split(file_path)
-
-    # We will append stuff to the filename, so we must be sure not to cross
-    # over the maximum limit (which is system dependent, but 255 to be real).
-    # We'll add a base16 md5 and a "json.tmp" extension.
-    basename = basename[:210]
-
-    file_path = os.path.join(pdir, basename)
-    title = os.path.splitext(basename)[0]
 
     if result.is_ok():
         text = result.unwrap()
@@ -116,7 +111,7 @@ def process_file(file_path: str, output_dir: str, use_hash_directories: bool) ->
 
     result = {
         "title": title,
-        "url": file_path,
+        "url": url,
         "extract_version": textit.version.__version__
     }
 
@@ -145,7 +140,10 @@ def process_file(file_path: str, output_dir: str, use_hash_directories: bool) ->
     os.makedirs(output_dir, exist_ok=True)
 
     # Write the result to a temporary file and then rename it
-    basename = os.path.splitext(get_output_name(file_path))[0]
+    # We will append stuff to the filename, so we must be sure not to cross
+    # over the maximum limit (which is system dependent, but 255 to be real).
+    # We'll add a base16 md5 and a "json.tmp" extension.
+    basename = basename[:210]
     output_file_tmp = os.path.join(output_dir, f"{basename}.json.tmp")
     output_file_final = os.path.join(output_dir, f"{basename}.json")
     with open(output_file_tmp, 'w', encoding='utf-8') as f:
