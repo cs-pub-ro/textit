@@ -80,6 +80,8 @@ def process_file(file_path: str, output_dir: str, use_hash_directories: bool) ->
     extractor.add_processor(language_identification)
 
     file_type = get_file_type(file_path)
+    file_digest = compute_sha1(file_path)
+
     metadata = Metadata(file_type=file_type, document_class=DocumentClass.BOOK)
     result, metadata = extractor.extract_text(file_path, metadata)
 
@@ -105,8 +107,6 @@ def process_file(file_path: str, output_dir: str, use_hash_directories: bool) ->
         "url": file_path,
         "extract_version": textit.version.__version__
     }
-
-    file_digest = compute_sha1(file_path)
 
     result['digest'] = 'sha1:' + file_digest
 
