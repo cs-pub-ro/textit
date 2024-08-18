@@ -348,7 +348,7 @@ class PdfProcessor(object):
 
 
 def apply_ocr(pdf_path, page_range=None):
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as temp_output:
         temp_output_path = temp_output.name
         ocrmypdf.ocr(pdf_path, temp_output_path, l='ron',
                      invalidate_digital_signatures=True,
@@ -373,7 +373,7 @@ def process_pdf(pdf_path, page_range=None):
             proc = apply_ocr(pdf_path, page_range)
         except ocrmypdf.exceptions.EncryptedPdfError:
             procmeta["decrypted"] = True
-            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
+            with tempfile.NamedTemporaryFile(suffix=".pdf") as temp_output:
                 temp_output_path = temp_output.name
                 decrypt_pdf(pdf_path, temp_output_path)
                 proc = apply_ocr(temp_output_path, page_range)

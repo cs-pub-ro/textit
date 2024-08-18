@@ -93,7 +93,7 @@ def process_file(file_path: str, output_dir: str, use_hash_directories: bool) ->
         file_path.encode("utf-8")
         result, metadata = extractor.extract_text(file_path, metadata)
     except UnicodeEncodeError:
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
+        with tempfile.NamedTemporaryFile(suffix=".pdf") as temp_output:
             shutil.copy2(file_path, temp_output.name)
             result, metadata = extractor.extract_text(temp_output.name, metadata)
 
