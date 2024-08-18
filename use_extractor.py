@@ -8,6 +8,8 @@ from typing import Dict, Any
 import multiprocessing as mp
 import hashlib
 import traceback
+import tempfile
+import shutil
 
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
@@ -83,7 +85,17 @@ def process_file(file_path: str, output_dir: str, use_hash_directories: bool) ->
     file_digest = compute_sha1(file_path)
 
     metadata = Metadata(file_type=file_type, document_class=DocumentClass.BOOK)
-    result, metadata = extractor.extract_text(file_path, metadata)
+
+    # While we can deal with non-UTF-8 filenames, other tools down the line,
+    # may not be able to, so here we do first copy a file to temporary, UTF-8
+    # path.
+    try:
+        file_path.encode("utf-8")
+        result, metadata = extractor.extract_text(file_path, metadata)
+    except UnicodeEncodeError:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
+            shutil.copy2(file_path, temp_output.name)
+            result, metadata = extractor.extract_text(temp_output.name, metadata)
 
     assert(metadata is not None)
 
