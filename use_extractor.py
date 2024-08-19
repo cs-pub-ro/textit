@@ -154,22 +154,26 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
     file_list = []
+    file_digest = None
     for root, _, files in os.walk(args.input_dir):
         for file in files:
             input_file_path = os.path.join(root, file)
             output_dir = args.output_dir
             input_path_hash = get_path_hash(input_file_path)
             output_filename = input_path_hash + ".json"
-            file_digest = compute_sha1(input_file_path)
 
             # Determine the output directory
             if args.use_hash_directories:
+                file_digest = compute_sha1(input_file_path)
                 dir1 = file_digest[:2]
                 dir2 = file_digest[2:4]
                 output_dir = os.path.join(output_dir, dir1, dir2)
 
             output_file_path = os.path.join(output_dir, output_filename)
             if not os.path.exists(output_file_path):
+                if file_digest is None:
+                    file_digest = compute_sha1(input_file_path)
+
                 file_list.append((input_file_path, output_file_path, file_digest))
             else:
                 logger.info(f"File {repr(input_file_path)} already processed")
