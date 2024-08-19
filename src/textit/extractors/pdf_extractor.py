@@ -151,7 +151,7 @@ class Page(object):
         if self._broken is None:
             text = self.get_text()
             if not text:
-                self._broken = True
+                self._broken = False
             else:
                 total_chars = len(text)
                 n_ok_chars = sum((c in OK_CHARS) for c in text)
