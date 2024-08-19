@@ -51,22 +51,19 @@ def get_file_type(file_path):
         # return None
 
 
-def get_output_name(input_path: str) -> str:
+def get_path_hash(input_path: str) -> str:
     try:
-        pathhash = hashlib.md5(input_path.encode("utf-8")).hexdigest()
+        pathhash = hashlib.sha1(input_path.encode("utf-8")).hexdigest()
     except UnicodeEncodeError as e:
         logger.warning(f"UnicodeEncodeError for '{repr(input_path)}':\n\t{e}")
-        pathhash = hashlib.md5(repr(input_path).encode("utf-8")).hexdigest()
+        pathhash = hashlib.sha1(repr(input_path).encode("utf-8")).hexdigest()
 
-    bname = os.path.basename(input_path)
-    output_filename = os.path.splitext(bname)[0] + f".{pathhash}" + '.json'
-    return output_filename
+    return pathhash
 
 
 def json_default_serializer(obj):
     return obj.name
 
-import hashlib
 
 def compute_sha1(file_path):
     sha1 = hashlib.sha1()
@@ -75,31 +72,29 @@ def compute_sha1(file_path):
             sha1.update(chunk)
     return sha1.hexdigest()
 
-def process_file(file_path: str, output_dir: str, use_hash_directories: bool) -> None:
+
+def process_file(input_path: str, output_path: str, file_digest: str, use_hash_directories: bool) -> None:
     extractor = TextExtractor()
     extractor.add_processor(text_repair)
     extractor.add_processor(quality_filter)
     extractor.add_processor(language_identification)
 
-    file_type = get_file_type(file_path)
-    file_digest = compute_sha1(file_path)
-
+    file_type = get_file_type(input_path)
     metadata = Metadata(file_type=file_type, document_class=DocumentClass.BOOK)
-    pdir, basename = os.path.split(file_path)
+    _, basename = os.path.split(input_path)
     title = os.path.splitext(basename)[0]
 
     # While we can deal with non-UTF-8 filenames, other tools down the line,
     # may not be able to, so here we do first copy a file to temporary, UTF-8
     # path.
-    url = file_path
+    url = input_path
     try:
-        file_path.encode("utf-8")
-        result, metadata = extractor.extract_text(file_path, metadata)
+        input_path.encode("utf-8")
+        result, metadata = extractor.extract_text(input_path, metadata)
     except UnicodeEncodeError:
-        url = repr(file_path)
-        title = repr(title)
+        url = repr(input_path)
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
-            shutil.copy2(file_path, temp_output.name)
+            shutil.copy2(input_path, temp_output.name)
             result, metadata = extractor.extract_text(temp_output.name, metadata)
 
     assert(metadata is not None)
@@ -109,52 +104,29 @@ def process_file(file_path: str, output_dir: str, use_hash_directories: bool) ->
     else:
         text = ""
 
-    result = {
-        "title": title,
-        "url": url,
-    }
-
-    result['digest'] = 'sha1:' + file_digest
-
     metadata.version = textit.version.__version__
-    if metadata.nlines is not None:
-        result['nlines'] = metadata.nlines
+    result = {k: v for k, v in metadata.__dict__.items() if v is not None}
+    result["url"] = url
+    result["digest"] = "sha1:" + file_digest
+    result["raw_content"] = "\n".join(text)
 
-    if metadata.original_nlines is not None:
-        result['original_nlines'] = metadata.original_nlines
-
-    result = {**result, **{k: v for k, v in metadata.__dict__.items() if v is not None}}
-    result['raw_content'] = '\n'.join(text)
-
-    # Determine the output directory
-    if use_hash_directories:
-        dir1 = file_digest[:2]
-        dir2 = file_digest[2:4]
-        output_dir = os.path.join(output_dir, dir1, dir2)
-
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Write the result to a temporary file and then rename it
-    # We will append stuff to the filename, so we must be sure not to cross
-    # over the maximum limit (which is system dependent, but 255 to be real).
-    # We'll add a base16 md5 and a "json.tmp" extension.
-    basename = basename[:210]
-    output_file_tmp = os.path.join(output_dir, f"{basename}.json.tmp")
-    output_file_final = os.path.join(output_dir, f"{basename}.json")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    output_file_tmp = output_path + ".tmp"
     with open(output_file_tmp, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2, default=json_default_serializer)
-    os.rename(output_file_tmp, output_file_final)
+
+    os.rename(output_file_tmp, output_path)
 
 
 def process_file_wrapper(arg):
     # For some reason we can't make this anonymous or local because someone
     # wants to pickle it.
-    file_path, output_dir, use_hash_directories = arg
+    (input_path, output_path, file_digest), use_hash_directories = arg
     try:
-        result = process_file(file_path, output_dir, use_hash_directories)
+        result = process_file(input_path, output_path, file_digest, use_hash_directories)
     except Exception as e:
         estr = format_exception(e)
-        logger.error(f"Exception raised when processing '{file_path}':{estr}")
+        logger.error(f"Exception raised when processing '{input_path}':{estr}")
 
 
 def main():
@@ -185,24 +157,27 @@ def main():
     for root, _, files in os.walk(args.input_dir):
         for file in files:
             input_file_path = os.path.join(root, file)
-            output_filename = get_output_name(input_file_path)
             output_dir = args.output_dir
+            input_path_hash = get_path_hash(input_file_path)
+            output_filename = input_path_hash + ".json"
+            file_digest = compute_sha1(input_file_path)
+
             # Determine the output directory
             if args.use_hash_directories:
-                file_digest = compute_sha1(input_file_path)
                 dir1 = file_digest[:2]
                 dir2 = file_digest[2:4]
                 output_dir = os.path.join(output_dir, dir1, dir2)
 
             output_file_path = os.path.join(output_dir, output_filename)
             if not os.path.exists(output_file_path):
-                file_list.append(input_file_path)
+                file_list.append((input_file_path, output_file_path, file_digest))
             else:
-                logger.info(f"File '{input_file_path}' already processed")
+                logger.info(f"File {repr(input_file_path)} already processed")
 
     with mp.Pool(initializer=init_proc, initargs=[args], processes=args.num_processes) as pool:
         with tqdm(total=len(file_list), desc="Extracting text", unit="file") as pbar:
-            for _ in pool.imap_unordered(process_file_wrapper, [(file, args.output_dir, args.use_hash_directories) for file in file_list]):
+            tasks = [(entry, args.use_hash_directories) for entry in file_list]
+            for _ in pool.imap_unordered(process_file_wrapper, tasks):
                 pbar.update()
 
 
