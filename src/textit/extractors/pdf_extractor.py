@@ -358,7 +358,7 @@ def apply_ocr(pdf_path, page_range=None):
         ocrmypdf.ocr(pdf_path, temp_output_path, l='ron',
                      invalidate_digital_signatures=True,
                      force_ocr=True, deskew=True,
-                     progress_bar=True)
+                     progress_bar=False)
 
         proc = PdfProcessor(temp_output_path, page_range)
 
