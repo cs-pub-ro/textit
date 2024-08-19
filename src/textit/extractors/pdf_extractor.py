@@ -23,6 +23,10 @@ from textit.metadata import Metadata
 from textit.helpers import Result, format_exception
 
 
+# If we have to cluster too many items, it will take too much, so don't even
+# try.
+CLUSTERING_THRESHOLD = 4000
+
 # Characters that are "OK" to be extracted from a Romanian text.
 # XXX Besides the obvious ones, the rest are added based on observations on
 # arbitrary (manually selected) samples.
@@ -165,14 +169,19 @@ class Page(object):
             self._broken = True
             return
 
-        self._compute_epsilon()
-        labels = self._perform_dbscan()
+        if len(self.bboxes) > CLUSTERING_THRESHOLD:
+            # Just give up and consider everything to be in the same area.
+            self.eps = 1
+            clusters = {0: self.bboxes}
+        else:
+            self._compute_epsilon()
+            labels = self._perform_dbscan()
 
-        clusters = {}
-        for rect, label in zip(self.bboxes, labels):
-            if label not in clusters:
-                clusters[label] = []
-            clusters[label].append(rect)
+            clusters = {}
+            for rect, label in zip(self.bboxes, labels):
+                if label not in clusters:
+                    clusters[label] = []
+                clusters[label].append(rect)
 
         for _, bboxes in clusters.items():
             big_box = get_encompassing_bbox(bboxes)
@@ -265,11 +274,7 @@ class Page(object):
             self.eps = 1
             return
 
-        # print(f"BBOXES ({len(self.bboxes)}): {self.bboxes}")
-        # print(f"Distances ({len(distances)}): ", distances)
         mode = stats.mode(distances)
-        # print("EPSILON: ", mode[0] * 1.5, distances[len(distances) // 2] * 1.2,
-                # sum(distances) // len(distances))
         if mode[1] < 5:
             l = len(distances)
             m = l // 2
@@ -348,12 +353,12 @@ class PdfProcessor(object):
 
 
 def apply_ocr(pdf_path, page_range=None):
-    with tempfile.NamedTemporaryFile(suffix=".pdf") as temp_output:
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
         temp_output_path = temp_output.name
         ocrmypdf.ocr(pdf_path, temp_output_path, l='ron',
                      invalidate_digital_signatures=True,
                      force_ocr=True, deskew=True,
-                     progress_bar=False)
+                     progress_bar=True)
 
         proc = PdfProcessor(temp_output_path, page_range)
 
@@ -373,7 +378,7 @@ def process_pdf(pdf_path, page_range=None):
             proc = apply_ocr(pdf_path, page_range)
         except ocrmypdf.exceptions.EncryptedPdfError:
             procmeta["decrypted"] = True
-            with tempfile.NamedTemporaryFile(suffix=".pdf") as temp_output:
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
                 temp_output_path = temp_output.name
                 decrypt_pdf(pdf_path, temp_output_path)
                 proc = apply_ocr(temp_output_path, page_range)
@@ -458,7 +463,6 @@ def line_cleaner(doc_info):
     paragraph = []
     paragraph_started = False
     for pnumber, psize, boxes in doc_info:
-        # print("BOXES #: ", len(boxes))
         for line_box, lines in boxes:
             tleft_margin = get_text_left_margin(lines)
             qstats = []
@@ -466,7 +470,6 @@ def line_cleaner(doc_info):
                 text = text.strip()
                 qs = quality_stats(line_box, tleft_margin, bbox, text)
                 qstats.append(qs)
-                # print(qs, text)
                 if qs["ok_chars_ratio"] <= 0.95 or \
                    qs["nonword_ratio"] >= 0.35 or \
                    qs["lowercase_ratio"] < 0.35 or \
