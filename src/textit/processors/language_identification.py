@@ -1,6 +1,7 @@
 import fasttext
 import fasttext.util
 from pkg_resources import resource_filename
+from typing import Optional
 
 
 model_path = resource_filename('textit.processors.lang_id', 'lid.176.bin')
@@ -18,7 +19,7 @@ def get_romanian_score(text):
     return 0
 
 # Identifies the language and drops the text entries with less than 0.5 romanian score
-def language_identification(text: str) -> str:
+def language_identification(text: str) -> Optional[str]:
     """
     Identify the language of the text and tag it.
     
@@ -32,5 +33,5 @@ def language_identification(text: str) -> str:
     score = get_romanian_score(text)
 
     if score < 0.5:
-        return ""
+        return None
     return text

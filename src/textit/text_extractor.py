@@ -14,7 +14,7 @@ from textit.helpers import Result, getLogger
 
 # Type aliases
 HandlerFunction = Callable[[str, Metadata], tuple[Result[List[str]], Metadata]]
-ProcessingFunction = Callable[[str], str]
+ProcessingFunction = Callable[[str], Optional[str]]
 
 def compute_sha1(text):
     text_bytes = text.encode('utf-8')
@@ -44,7 +44,6 @@ class TextExtractor:
         self.processing_pipeline.append(processor)
 
     def extract_text(self, file_path: str, metadata: Optional[Metadata] = None) -> tuple[Result[List[str]], Metadata]:
-        
         if metadata is None:
             metadata = Metadata()
 
@@ -60,22 +59,18 @@ class TextExtractor:
         if text.is_err():
             logger = getLogger()
             logger.error(text._error)
-            newmetadata.drop_reason = "text-extraction-failure"
+            if newmetadata.drop_reason is None:
+                newmetadata.drop_reason = "text-extraction-failure"
+
             return Result.ok([""]), newmetadata
 
-        full_text = '\n'.join(text.unwrap())
-
-        # I think it's better to have the hash before processing because is
-        # the text that has the least changes from the original material
-        newmetadata.digest = 'sha1:' + compute_sha1(full_text)
+        newmetadata.original_nlines = len(text.unwrap())
 
         # Call the pipeline functions for text processing
         processed_text = text.map(self._process_text)
 
         if processed_text.is_ok():
-            full_text = '\n'.join(processed_text.unwrap())
-
-        newmetadata.original_nlines = len(full_text.split('\n'))
+            newmetadata.nlines = len(processed_text.unwrap())
 
         return (processed_text, newmetadata)
 
@@ -111,10 +106,11 @@ class TextExtractor:
 
     def _process_text(self, raw_text: List[str]) -> List[str]:
         with ThreadPoolExecutor() as executor:
-            processed_text = list(executor.map(self._apply_pipeline, raw_text))
+            processed_text = [e for e in list(executor.map(self._apply_pipeline, raw_text)) if e is not None]
         return processed_text
 
-    def _apply_pipeline(self, text: str) -> str:
+    def _apply_pipeline(self, text: Optional[str]) -> Optional[str]:
         for processor in self.processing_pipeline:
-            text = processor(text)
+            text = None if text is None else processor(text)
+
         return text

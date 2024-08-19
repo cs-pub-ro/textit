@@ -1,4 +1,7 @@
-def text_repair(text: str) -> str:
+from typing import Optional
+
+
+def text_repair(text: str) -> Optional[str]:
     """
     Repair and clean up the extracted text.
     

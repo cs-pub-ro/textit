@@ -3,6 +3,7 @@ import unicodedata
 import re
 import string
 import numpy as np
+from typing import Optional
 
 TRANSLATION_TABLE_PUNCTUATION = str.maketrans("", "", string.punctuation)
 PRECISION = 8
@@ -125,7 +126,7 @@ def RPS_Frac_Chars_In_Dupe_NGrams(text: str, NGRAM_SIZE: int):
     score = round(score, PRECISION)
     return score
 
-def quality_filter(text: str) -> str:
+def quality_filter(text: str) -> Optional[str]:
     """
     Filter the text based on quality criteria.
 
@@ -148,7 +149,7 @@ def quality_filter(text: str) -> str:
     ngram_10 = RPS_Frac_Chars_In_Dupe_NGrams(text, 10)
 
     if ngram_2 > 0.2 or ngram_3 > 0.18 or ngram_4 > 0.16:
-        return ""
+        return None
 
     #if ngram_5 > 0.15 or ngram_6 > 0.14 or ngram_7 > 0.13 or ngram_8 > 0.12 or ngram_9 > 0.11 or ngram_10 > 0.10:
     #    return ""

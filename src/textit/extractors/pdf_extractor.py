@@ -496,7 +496,7 @@ def line_cleaner(doc_info):
     text = "\n".join(paragraphs)
     text = remove_references(text)
 
-    return [text]
+    return text.splitlines()
 
 
 def pdf_handler(file_path: str, metadata: Metadata) -> tuple[Result[List[str]], Metadata]:
