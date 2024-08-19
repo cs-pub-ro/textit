@@ -524,4 +524,4 @@ if __name__ == "__main__":
     result, metadata = pdf_handler(pdf_path, Metadata())
     print("Metadata:\n", metadata)
     with open(sys.argv[2], "w") as fout:
-        fout.write(result.unwrap()[0])
+        fout.write("\n".join(result.unwrap()))
