@@ -112,23 +112,18 @@ def process_file(file_path: str, output_dir: str, use_hash_directories: bool) ->
     result = {
         "title": title,
         "url": url,
-        "extract_version": textit.version.__version__
     }
 
     result['digest'] = 'sha1:' + file_digest
 
-    res_metadata = {}
-
-    if metadata.digest is not None:
-        res_metadata['content_digest'] = metadata.digest
-
+    metadata.version = textit.version.__version__
     if metadata.nlines is not None:
         result['nlines'] = metadata.nlines
 
     if metadata.original_nlines is not None:
         result['original_nlines'] = metadata.original_nlines
 
-    result = {**result, **metadata.__dict__}
+    result = {**result, **{k: v for k, v in metadata.__dict__.items() if v is not None}}
     result['raw_content'] = '\n'.join(text)
 
     # Determine the output directory
