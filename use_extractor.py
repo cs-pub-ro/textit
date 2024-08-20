@@ -154,9 +154,9 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
     file_list = []
-    file_digest = None
     for root, _, files in os.walk(args.input_dir):
         for file in files:
+            file_digest = None
             input_file_path = os.path.join(root, file)
             output_dir = args.output_dir
             input_path_hash = get_path_hash(input_file_path)
