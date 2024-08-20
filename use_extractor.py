@@ -70,16 +70,18 @@ def compute_sha1(file_path):
     with open(file_path, 'rb') as file:
         while chunk := file.read(8192):
             sha1.update(chunk)
+
     return sha1.hexdigest()
 
 
-def process_file(input_path: str, output_path: str, file_digest: str, use_hash_directories: bool) -> None:
+def process_file(input_path: str, output_path: str, use_hash_directories: bool) -> None:
     extractor = TextExtractor()
     extractor.add_processor(text_repair)
     extractor.add_processor(quality_filter)
     extractor.add_processor(language_identification)
 
     file_type = get_file_type(input_path)
+    file_digest = compute_sha1(input_path)
     metadata = Metadata(file_type=file_type, document_class=DocumentClass.BOOK)
     _, basename = os.path.split(input_path)
     title = os.path.splitext(basename)[0]
@@ -121,9 +123,9 @@ def process_file(input_path: str, output_path: str, file_digest: str, use_hash_d
 def process_file_wrapper(arg):
     # For some reason we can't make this anonymous or local because someone
     # wants to pickle it.
-    (input_path, output_path, file_digest), use_hash_directories = arg
+    (input_path, output_path), use_hash_directories = arg
     try:
-        result = process_file(input_path, output_path, file_digest, use_hash_directories)
+        result = process_file(input_path, output_path, use_hash_directories)
     except Exception as e:
         estr = format_exception(e)
         logger.error(f"Exception raised when processing '{input_path}':{estr}")
@@ -156,7 +158,6 @@ def main():
     file_list = []
     for root, _, files in os.walk(args.input_dir):
         for file in files:
-            file_digest = None
             input_file_path = os.path.join(root, file)
             output_dir = args.output_dir
             input_path_hash = get_path_hash(input_file_path)
@@ -164,17 +165,14 @@ def main():
 
             # Determine the output directory
             if args.use_hash_directories:
-                file_digest = compute_sha1(input_file_path)
-                dir1 = file_digest[:2]
-                dir2 = file_digest[2:4]
+                path_digest = get_path_hash(input_file_path)
+                dir1 = path_digest[:2]
+                dir2 = path_digest[2:4]
                 output_dir = os.path.join(output_dir, dir1, dir2)
 
             output_file_path = os.path.join(output_dir, output_filename)
             if not os.path.exists(output_file_path):
-                if file_digest is None:
-                    file_digest = compute_sha1(input_file_path)
-
-                file_list.append((input_file_path, output_file_path, file_digest))
+                file_list.append((input_file_path, output_file_path))
             else:
                 logger.info(f"File {repr(input_file_path)} already processed")
 
