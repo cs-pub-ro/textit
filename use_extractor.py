@@ -10,6 +10,7 @@ import hashlib
 import traceback
 import tempfile
 import shutil
+import bisect
 
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
@@ -172,7 +173,7 @@ def main():
 
             output_file_path = os.path.join(output_dir, output_filename)
             if not os.path.exists(output_file_path):
-                file_list.append((input_file_path, output_file_path))
+                bisect.insort(file_list, (input_file_path, output_file_path), key=lambda e: os.path.getsize(e[0]))
             else:
                 logger.info(f"File {repr(input_file_path)} already processed")
 
