@@ -28,11 +28,12 @@ def setup_logging(log_dir: str,
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
-        # Add a stream handler to print to stderr
-        stream_handler = logging.StreamHandler(sys.stderr)
-        stderr_formatter = logging.Formatter(logger_format)
-        stream_handler.setFormatter(stderr_formatter)
-        logger.addHandler(stream_handler)
+        if stderr:
+            # Add a stream handler to print to stderr
+            stream_handler = logging.StreamHandler(sys.stderr)
+            stderr_formatter = logging.Formatter(logger_format)
+            stream_handler.setFormatter(stderr_formatter)
+            logger.addHandler(stream_handler)
 
         # Prevent the logger from propagating messages to the root logger
         logger.propagate = False
