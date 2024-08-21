@@ -22,6 +22,10 @@ import textit.version
 import subprocess
 
 
+# For sha1 calculation
+CHUNK_SIZE = 2 ** 16
+
+
 def init_proc(args):
     setup_logging(args.logdir, stderr=args.logstderr, level=args.loglevel)
 
@@ -69,7 +73,7 @@ def json_default_serializer(obj):
 def compute_sha1(file_path):
     sha1 = hashlib.sha1()
     with open(file_path, 'rb') as file:
-        while chunk := file.read(8192):
+        while chunk := file.read(CHUNK_SIZE):
             sha1.update(chunk)
 
     return sha1.hexdigest()
