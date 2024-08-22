@@ -374,10 +374,27 @@ class PdfProcessor(object):
 def apply_ocr(pdf_path, page_range=None):
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
         temp_output_path = temp_output.name
-        ocrmypdf.ocr(pdf_path, temp_output_path, l='ron',
-                     invalidate_digital_signatures=True,
-                     force_ocr=True, deskew=True,
-                     progress_bar=False)
+        try:
+            ocrmypdf.ocr(pdf_path, temp_output_path, l='ron',
+                         invalidate_digital_signatures=True,
+                         force_ocr=True,
+                         progress_bar=False,
+                         deskew=True,
+                         max_image_mpixels=900,
+                         )
+        except ocrmypdf.exceptions.SubprocessOutputError as e:
+            _, _, fname, _ = traceback.extract_tb(e.__traceback__)[-1]
+            print(f"FUNCTION {fname} FAILED!")
+            if fname == "get_deskew":
+                ocrmypdf.ocr(pdf_path, temp_output_path, l='ron',
+                             invalidate_digital_signatures=True,
+                             force_ocr=True,
+                             progress_bar=False,
+                             deskew=False,
+                             max_image_mpixels=900,
+                             )
+            else:
+                raise e
 
         proc = PdfProcessor(temp_output_path, page_range)
 
