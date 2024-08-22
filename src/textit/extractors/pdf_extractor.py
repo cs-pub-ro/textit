@@ -339,7 +339,12 @@ class PdfProcessor(object):
 
             self._pages = []
             for i in self._page_range:
-                self._pages.append(Page(self.pdf_path, self._pdf[i], i))
+                try:
+                    self._pages.append(Page(self.pdf_path, self._pdf[i], i))
+                except pypdfium2._helpers.misc.PdfiumError as e:
+                    se = str(e)
+                    if se == "Failed to load page.":
+                        logger.warning(f"Failed to load page {i} ({repr(self.pdf_path)})")
 
         return self._pages
 
