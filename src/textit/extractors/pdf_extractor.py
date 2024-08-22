@@ -20,8 +20,11 @@ import traceback
 import subprocess
 
 from textit.metadata import Metadata
-from textit.helpers import Result, format_exception
+from textit.helpers import Result, format_exception, getLogger
 
+
+
+logger = getLogger()
 
 # If we have to cluster too many items, it will take too much, so don't even
 # try.
@@ -231,13 +234,21 @@ class Page(object):
 
         self.bboxes = []
         bboxes_set = set()  # to keep them unique
-        for obj in self.page.get_objects():
-            if obj.type == 1:  # text type
-                bbox = obj.get_pos()
-                if bbox not in bboxes_set:
-                    bisect.insort(self.bboxes, bbox, key=bbox_sort_key)
-                    bboxes_set.add(bbox)
-                    #self.bboxes.append(bbox)
+        try:
+            for obj in self.page.get_objects():
+                if obj.type == 1:  # text type
+                    bbox = obj.get_pos()
+                    if bbox not in bboxes_set:
+                        bisect.insort(self.bboxes, bbox, key=bbox_sort_key)
+                        bboxes_set.add(bbox)
+                        #self.bboxes.append(bbox)
+        except pypdfium2._helpers.misc.PdfiumError as e:
+            se = str(e)
+            logger.warning(f"Couldn't get page objects for page {self.pnumber} ({repr(self.pdf_path)})")
+            if se == "Failed to get number of page objects.":
+                return
+
+            raise e
 
     def _perform_dbscan(self):
         distances = pairwise_distances(self.bboxes, metric=rectangle_distance)
