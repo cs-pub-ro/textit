@@ -549,6 +549,12 @@ def pdf_handler(file_path: str, metadata: Metadata) -> tuple[Result[List[str]], 
         extracted_text = line_cleaner(doc_info)
         return (Result.ok(extracted_text), metadata)
     except Exception as e:
+        se = str(e)
+        if se == "Failed to load document (PDFium: Incorrect password error).":
+            metadata.drop_reason = "unknown_encryption_password"
+        elif se == "Failed to load document (PDFium: Data format error).":
+            metadata.drop_reason = "broken-pdf"
+
         estr = format_exception(e)
         return (Result.err(f"Error extracting text from PDF at '{file_path}':{estr}"), metadata)
 
