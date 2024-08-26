@@ -48,6 +48,24 @@ OK_CHARS = set(string.printable + "ăĂâÂîÎșȘțȚşŞŢţ©–…·►◄�
         "шћТҐИфбоувЗЕњнГЂџСсђЛхЁмЊырПеКжцчШНЈФлаВЏэидзптгєкъРіУЭљЋБХЇЙґЮАщЖьЄёЪюМяјЦїЬОІЧйЫДЉЩЯ" + \
         "ÁÉÍÓÖŐÚÜŰáéíóöőúüű")  # Hungarian-specific characters
 
+
+def fix_diacritics(text: str) -> str:
+    correct_diacritics = {
+            "ã": "ă",
+            "Ã": "Ă",
+            "º": "ș",
+            "ª": "Ș",
+            "þ": "ț",
+            "Þ": "Ț",
+            "\x02": "-",
+    }
+
+    for (w, c) in correct_diacritics.items():
+        text = text.replace(w, c)
+
+    return text
+
+
 def remove_references(input_text):
     output_text = re.sub(r"( ?(\[[0-9]+((-?[0-9]+)?(, ?[0-9]+)*)\])+)|( ?\([0-9]+((-?[0-9]+)?(, ?[0-9]+)*)\))|( ?\([^\)]*[0-9][0-9][0-9][0-9].?\))", "", input_text)
     return output_text
@@ -205,6 +223,7 @@ class Page(object):
         def update_lines(lines, current_line_boxes):
             big_box = get_encompassing_bbox(current_line_boxes)
             text = get_text_in_bbox(big_box)
+            text = fix_diacritics(text)
             lines.append((big_box, text))
 
         self._line_boxes = []
