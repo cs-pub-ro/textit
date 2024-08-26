@@ -46,7 +46,7 @@ def getLogger():
 
 def format_exception(e):
     estr = "".join(traceback.format_exception(e))
-    return f"\n```\n{estr}\n```\n\n"
+    return f"\n```\n{estr}```\n\n"
 
 
 class Result(Generic[T]):

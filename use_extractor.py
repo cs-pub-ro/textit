@@ -48,7 +48,7 @@ def get_file_type(file_path):
             return None
     except subprocess.CalledProcessError as e:
         estr = "".join(traceback.format_exception(e))
-        logger.error(f"Couldn't get file type for '{file_path}':\n```\n{e}\n```\n\n")
+        logger.error(f"Couldn't get file type for '{file_path}':\n```\n{e}```\n\n")
         return None
     # XXX Dubious
     # except FileNotFoundError:
