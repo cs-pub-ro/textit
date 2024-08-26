@@ -573,7 +573,8 @@ def pdf_handler(file_path: str, metadata: Metadata) -> tuple[Result[List[str]], 
         se = str(e)
         if se == "Failed to load document (PDFium: Incorrect password error).":
             metadata.drop_reason = "unknown_encryption_password"
-        elif se == "Failed to load document (PDFium: Data format error).":
+        elif se in {"Failed to load document (PDFium: Data format error).",
+                "Failed to load document (PDFium: Success)."}:
             metadata.drop_reason = "broken-pdf"
 
         estr = format_exception(e)
