@@ -42,8 +42,10 @@ CLUSTERING_THRESHOLD = 4000
 # Hungarian is a common language that might sneak in, so for now we add those.
 MATH_SYMBOLS = "∀∁∂∃∄∅∆∇∈∉∊∋∌∍∎∏∐∑−∓∔∕∖∗∘∙√∛∜∝∞∟∠∡∢∣∤∥∦∧∨∩∪∫∬∭∮∯∰∱∲∳∴∵∶∷∸∹∺∻∼∽∾∿≀≁≂≃≄≅≆≇≈≉≊≋≌≍≎≏≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≠≡≢≣≤≥≦≧≨≩≪≫≬≭≮≯≰≱≲≳≴≵≶≷≸≹≺≻≼≽≾≿⊀⊁⊂⊃⊄⊅⊆⊇⊈⊉⊊⊋⊌⊍⊎⊏⊐⊑⊒⊓⊔⊕⊖⊗⊘⊙⊚⊛⊜⊝⊞⊟⊠⊡⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯⊰⊱⊲⊳⊴⊵⊶⊷⊸⊹⊺⊻⊼⊽⊾⊿⋀⋁⋂⋃⋄⋅⋆⋇⋈⋉⋊⋋⋌⋍⋎⋏⋐⋑⋒⋓⋔⋕⋖⋗⋘⋙⋚⋛⋜⋝⋞⋟⋠⋡⋢⋣⋤⋥⋦⋧⋨⋩⋪⋫⋬⋭⋮⋯⋰⋱⋲⋳⋴⋵⋶⋷⋸⋹⋺⋻⋼⋽⋾⋿ΑαΒβΓγΔδΕεΖζΗηΘθΙιΚκΛλΜμΝνΞξΟοΠπΡρΣσ/ςΤτΥυΦφΧχΨψΩω"
 
+# That is the UA, RU and SR alphabets, joined together, set-ified, then united
 OK_CHARS = set(string.printable + "ăĂâÂîÎșȘțȚşŞŢţ©–…·►◄«»°¬—×›•❤←→„”" + \
         MATH_SYMBOLS + \
+        "шћТҐИфбоувЗЕњнГЂџСсђЛхЁмЊырПеКжцчШНЈФлаВЏэидзптгєкъРіУЭљЋБХЇЙґЮАщЖьЄёЪюМяјЦїЬОІЧйЫДЉЩЯ" + \
         "ÁÉÍÓÖŐÚÜŰáéíóöőúüű")  # Hungarian-specific characters
 
 def remove_references(input_text):
