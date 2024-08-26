@@ -151,8 +151,14 @@ def main():
                         help="Lowest log level for which to record messages (default: %(default)s)")
     parser.add_argument("--logstderr", action="store_true",
                         help="Also print the logs to stderr")
+    parser.add_argument("--oldprefix", type=str, help="Directory prefix that will be replaced by a new one, when determining which files were already computed (helps when resuming computation on a different machine, or files were otherwise moved).")
+    parser.add_argument("--newprefix", type=str, help="Directory prefix that will replace the old one.")
 
     args = parser.parse_args()
+    if (args.oldprefix is not None and args.newprefix is None) or \
+       (args.oldprefix is None and args.newprefix is not None):
+        print("Either both the new and old prefixes should be specified, or neither!", file=sys.stderr)
+        sys.exit(1)
 
     setup_logging(args.logdir, stderr=args.logstderr, level=args.loglevel)
     global logger
@@ -164,8 +170,13 @@ def main():
     for root, _, files in os.walk(args.input_dir):
         for file in files:
             input_file_path = os.path.join(root, file)
+            hashed_input_path = input_file_path
+            if args.oldprefix is not None:
+                relpath = os.path.relpath(input_file_path, args.newprefix)
+                hashed_input_path = os.path.join(args.oldprefix, relpath)
+
             output_dir = args.output_dir
-            input_path_hash = get_path_hash(input_file_path)
+            input_path_hash = get_path_hash(hashed_input_path)
             output_filename = input_path_hash + ".json"
 
             # Determine the output directory
