@@ -3,6 +3,7 @@ import os
 from typing import Generic, TypeVar, Callable, Optional
 import traceback
 import sys
+import hashlib
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -47,6 +48,11 @@ def getLogger():
 def format_exception(e):
     estr = "".join(traceback.format_exception(e))
     return f"\n```\n{estr}```\n\n"
+
+
+def get_path_hash(input_path: str) -> str:
+    pathhash = hashlib.sha1(input_path.encode("utf-8", "surrogateescape")).hexdigest()
+    return pathhash
 
 
 class Result(Generic[T]):

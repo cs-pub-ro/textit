@@ -16,7 +16,8 @@ import bisect
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 from textit.text_extractor import TextExtractor, Metadata, FileType, DocumentClass
 from textit.processors import text_repair, quality_filter, language_identification
-from textit.helpers import handle_result, setup_logging, format_exception, getLogger
+from textit.helpers import handle_result, setup_logging, format_exception
+from textit.helpers import getLogger, get_path_hash
 import textit.version
 
 import subprocess
@@ -56,16 +57,6 @@ def get_file_type(file_path):
         # return None
 
 
-def get_path_hash(input_path: str) -> str:
-    try:
-        pathhash = hashlib.sha1(input_path.encode("utf-8")).hexdigest()
-    except UnicodeEncodeError as e:
-        logger.warning(f"UnicodeEncodeError for '{repr(input_path)}':\n\t{e}")
-        pathhash = hashlib.sha1(repr(input_path).encode("utf-8")).hexdigest()
-
-    return pathhash
-
-
 def json_default_serializer(obj):
     return obj.name
 
@@ -79,7 +70,7 @@ def compute_sha1(file_path):
     return sha1.hexdigest()
 
 
-def process_file(input_path: str, output_path: str, use_hash_directories: bool) -> None:
+def process_file(input_path: str, output_path: str) -> None:
     extractor = TextExtractor()
     extractor.add_processor(text_repair)
     extractor.add_processor(quality_filter)
@@ -87,7 +78,7 @@ def process_file(input_path: str, output_path: str, use_hash_directories: bool) 
 
     file_type = get_file_type(input_path)
     file_digest = compute_sha1(input_path)
-    metadata = Metadata(file_type=file_type, document_class=DocumentClass.BOOK)
+    metadata = Metadata(file_type=file_type, document_class=DocumentClass.CRAWLED)
     _, basename = os.path.split(input_path)
     title = os.path.splitext(basename)[0]
 
@@ -119,7 +110,7 @@ def process_file(input_path: str, output_path: str, use_hash_directories: bool) 
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     output_file_tmp = output_path + ".tmp"
-    with open(output_file_tmp, 'w', encoding='utf-8') as f:
+    with open(output_file_tmp, "w", encoding="utf-8", errors="surrogateescape") as f:
         json.dump(result, f, ensure_ascii=False, indent=2, default=json_default_serializer)
 
     os.rename(output_file_tmp, output_path)
@@ -128,9 +119,9 @@ def process_file(input_path: str, output_path: str, use_hash_directories: bool) 
 def process_file_wrapper(arg):
     # For some reason we can't make this anonymous or local because someone
     # wants to pickle it.
-    (input_path, output_path), use_hash_directories = arg
+    input_path, output_path = arg
     try:
-        result = process_file(input_path, output_path, use_hash_directories)
+        result = process_file(input_path, output_path)
     except Exception as e:
         estr = format_exception(e)
         logger.error(f"Exception raised when processing '{input_path}':{estr}")
@@ -140,25 +131,17 @@ def main():
     parser = argparse.ArgumentParser(description="Extract text from files in a directory")
     parser.add_argument("input_dir", help="Path to the input directory")
     parser.add_argument("output_dir", help="Path to the output .json.gz file")
-    parser.add_argument("--hash_based_partition", help="Partition the output dir based on the ", type=bool, default=False)
-    parser.add_argument("--use_hash_directories", action="store_true",
-                        help="Use hash-based directory structure for output (default: False)")
     parser.add_argument("--num_processes", type=int, default=mp.cpu_count(),
                         help="Number of processes to use (default: number of CPU cores)")
+    parser.add_argument("--prefix", type=str, default=None, help="Directory prefix to ignore.")
     parser.add_argument("--logdir", type=str, default="logs",
                         help="Name of the log directory (default: %(default)s)")
     parser.add_argument("--loglevel", type=str, default="INFO",
                         help="Lowest log level for which to record messages (default: %(default)s)")
     parser.add_argument("--logstderr", action="store_true",
                         help="Also print the logs to stderr")
-    parser.add_argument("--oldprefix", type=str, help="Directory prefix that will be replaced by a new one, when determining which files were already computed (helps when resuming computation on a different machine, or files were otherwise moved).")
-    parser.add_argument("--newprefix", type=str, help="Directory prefix that will replace the old one.")
 
     args = parser.parse_args()
-    if (args.oldprefix is not None and args.newprefix is None) or \
-       (args.oldprefix is None and args.newprefix is not None):
-        print("Either both the new and old prefixes should be specified, or neither!", file=sys.stderr)
-        sys.exit(1)
 
     setup_logging(args.logdir, stderr=args.logstderr, level=args.loglevel)
     global logger
@@ -166,35 +149,35 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
 
+    existing_hashes = set()
+    for root, _, files in os.walk(args.output_dir):
+        for file in files:
+            name = os.path.splitext(file)[0]
+            existing_hashes.add(name)
+
     file_list = []
     for root, _, files in os.walk(args.input_dir):
         for file in files:
             input_file_path = os.path.join(root, file)
             hashed_input_path = input_file_path
-            if args.oldprefix is not None:
-                relpath = os.path.relpath(input_file_path, args.newprefix)
-                hashed_input_path = os.path.join(args.oldprefix, relpath)
+            if args.prefix is not None:
+                relpath = os.path.relpath(input_file_path, args.prefix)
+                hashed_input_path = relpath
 
-            output_dir = args.output_dir
             input_path_hash = get_path_hash(hashed_input_path)
-            output_filename = input_path_hash + ".json"
+            if input_path_hash in existing_hashes:
+                logger.info(f"File {repr(input_file_path)} already processed")
+                continue
 
             # Determine the output directory
-            if args.use_hash_directories:
-                path_digest = get_path_hash(input_file_path)
-                dir1 = path_digest[:2]
-                dir2 = path_digest[2:4]
-                output_dir = os.path.join(output_dir, dir1, dir2)
-
+            output_dir = os.path.join(args.output_dir, os.path.dirname(hashed_input_path))
+            output_filename = input_path_hash + ".json"
             output_file_path = os.path.join(output_dir, output_filename)
-            if not os.path.exists(output_file_path):
-                bisect.insort(file_list, (input_file_path, output_file_path), key=lambda e: os.path.getsize(e[0]))
-            else:
-                logger.info(f"File {repr(input_file_path)} already processed")
+            bisect.insort(file_list, (input_file_path, output_file_path), key=lambda e: os.path.getsize(e[0]))
 
     with mp.Pool(initializer=init_proc, initargs=[args], processes=args.num_processes) as pool:
         with tqdm(total=len(file_list), desc="Extracting text", unit="file") as pbar:
-            tasks = [(entry, args.use_hash_directories) for entry in file_list]
+            tasks = file_list
             for _ in pool.imap_unordered(process_file_wrapper, tasks):
                 pbar.update()
 

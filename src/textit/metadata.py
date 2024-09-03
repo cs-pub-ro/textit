@@ -19,6 +19,7 @@ class DocumentClass(Enum):
     BOOK = auto()
     THESIS = auto()
     WEBPAGE = auto()
+    CRAWLED = auto()
 
 @dataclass
 class Metadata:
