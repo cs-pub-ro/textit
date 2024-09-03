@@ -17,7 +17,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 from textit.text_extractor import TextExtractor, Metadata, FileType, DocumentClass
 from textit.processors import text_repair, quality_filter, language_identification
 from textit.helpers import handle_result, setup_logging, format_exception
-from textit.helpers import getLogger, get_path_hash
+from textit.helpers import getLogger, get_path_hash, get_all_files
 import textit.version
 
 import subprocess
@@ -127,6 +127,24 @@ def process_file_wrapper(arg):
         logger.error(f"Exception raised when processing '{input_path}':{estr}")
 
 
+def get_basename_noext(path: str) -> str:
+    return os.path.splitext(os.path.basename(path))[0]
+
+
+def create_task(path: str, output_dir: str, prefix: str) -> tuple[str, str]:
+    hashed_input_path = path
+    if prefix is not None:
+        relpath = os.path.relpath(path, prefix)
+        hashed_input_path = relpath
+
+    # Determine the output directory
+    input_path_hash = get_path_hash(hashed_input_path)
+    output_dir = os.path.join(output_dir, os.path.dirname(hashed_input_path))
+    output_filename = input_path_hash + ".json"
+    output_file_path = os.path.join(output_dir, output_filename)
+    return path, output_file_path
+
+
 def main():
     parser = argparse.ArgumentParser(description="Extract text from files in a directory")
     parser.add_argument("input_dir", help="Path to the input directory")
@@ -149,35 +167,16 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    existing_hashes = set()
-    for root, _, files in os.walk(args.output_dir):
-        for file in files:
-            name = os.path.splitext(file)[0]
-            existing_hashes.add(name)
+    existing_files = get_all_files(args.output_dir)
+    existing_hashes = {get_basename_noext(file) for file in existing_files}
 
-    file_list = []
-    for root, _, files in os.walk(args.input_dir):
-        for file in files:
-            input_file_path = os.path.join(root, file)
-            hashed_input_path = input_file_path
-            if args.prefix is not None:
-                relpath = os.path.relpath(input_file_path, args.prefix)
-                hashed_input_path = relpath
-
-            input_path_hash = get_path_hash(hashed_input_path)
-            if input_path_hash in existing_hashes:
-                logger.info(f"File {repr(input_file_path)} already processed")
-                continue
-
-            # Determine the output directory
-            output_dir = os.path.join(args.output_dir, os.path.dirname(hashed_input_path))
-            output_filename = input_path_hash + ".json"
-            output_file_path = os.path.join(output_dir, output_filename)
-            bisect.insort(file_list, (input_file_path, output_file_path), key=lambda e: os.path.getsize(e[0]))
+    input_files = get_all_files(args.input_dir)
+    tasks = (create_task(file, args.output_dir, args.prefix) for file in input_files)
+    tasks = filter(lambda e: get_basename_noext(e[1]) not in existing_hashes, tasks)
+    tasks = sorted(tasks, key=lambda e: os.path.getsize(e[0]))
 
     with mp.Pool(initializer=init_proc, initargs=[args], processes=args.num_processes) as pool:
-        with tqdm(total=len(file_list), desc="Extracting text", unit="file") as pbar:
-            tasks = file_list
+        with tqdm(total=len(tasks), desc="Extracting text", unit="file") as pbar:
             for _ in pool.imap_unordered(process_file_wrapper, tasks):
                 pbar.update()
 

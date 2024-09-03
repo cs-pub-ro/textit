@@ -55,6 +55,17 @@ def get_path_hash(input_path: str) -> str:
     return pathhash
 
 
+def get_all_files(path: str) -> list[str]:
+    """Recursively returns all files from path."""
+    filelist = []
+    for root, _, files in os.walk(path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            filelist.append(file_path)
+
+    return filelist
+
+
 class Result(Generic[T]):
     def __init__(self, value: Optional[T], error: Optional[str]):
         self._value = value
