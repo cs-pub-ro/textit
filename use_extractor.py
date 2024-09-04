@@ -90,7 +90,7 @@ def process_file(input_path: str, output_path: str) -> None:
         input_path.encode("utf-8")
         result, metadata = extractor.extract_text(input_path, metadata)
     except UnicodeEncodeError:
-        url = repr(input_path)
+        url = input_path.encode("utf-8", "surrogateescape")
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
             shutil.copy2(input_path, temp_output.name)
             result, metadata = extractor.extract_text(temp_output.name, metadata)
