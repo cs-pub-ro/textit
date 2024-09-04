@@ -234,9 +234,7 @@ class Page(object):
             lines = []
             current_line_boxes = [bboxes[0]]
             for prev, bbox in zip(bboxes, bboxes[1:]):
-                # print(f"{prev} ('{get_text_in_bbox(prev)}'), {bbox} ('{get_text_in_bbox(bbox)}')")
                 if same_line(prev, bbox):
-                    # print("SAME!")
                     current_line_boxes.append(bbox)
                 else:
                     update_lines(lines, current_line_boxes)
@@ -250,7 +248,6 @@ class Page(object):
     def _compute_bboxes_sorted(self):
         def bbox_sort_key(bbox):
             l, b, r, t = bbox
-            #return (l, b, r, t)
             return (-t, l, b, r)
 
         self.bboxes = []
@@ -262,7 +259,6 @@ class Page(object):
                     if bbox not in bboxes_set:
                         bisect.insort(self.bboxes, bbox, key=bbox_sort_key)
                         bboxes_set.add(bbox)
-                        #self.bboxes.append(bbox)
         except pypdfium2._helpers.misc.PdfiumError as e:
             se = str(e)
             logger.warning(f"Couldn't get page objects for page {self.pnumber} ({repr(self.pdf_path)})")
@@ -299,10 +295,6 @@ class Page(object):
                     mind = d
 
             if mind is not None:
-                # In the rectangle distance function we need at some point to extract a
-                # square root; however, it seems to be quite computationally costly, so
-                # instead of that, we just keep all distances squared.
-                # That's why, this distance is better off sqrted.
                 bisect.insort(distances, mind)
 
         if not distances:
@@ -317,10 +309,6 @@ class Page(object):
         else:
             eps = mode[0] * 1.5
 
-        # In the rectangle distance function we need at some point to extract a
-        # square root; however, it seems to be quite computationally costly, so
-        # instead of that, we just keep all distances squared.
-        # That's why, epsilon also needs to be squared.
         self.eps = clamp(eps, 5, 15)
 
 
@@ -405,7 +393,7 @@ def apply_ocr(pdf_path, page_range=None):
                          )
         except ocrmypdf.exceptions.SubprocessOutputError as e:
             _, _, fname, _ = traceback.extract_tb(e.__traceback__)[-1]
-            print(f"FUNCTION {fname} FAILED!")
+            logger.warning(f"FUNCTION {fname} FAILED!")
             if fname == "get_deskew":
                 ocrmypdf.ocr(pdf_path, temp_output_path, l='ron',
                              invalidate_digital_signatures=True,
@@ -509,7 +497,6 @@ def line_cleaner(doc_info):
         result["line_indent"] = abs(l - left_margin) >= 2
         result["too_left"] = abs(l - left_margin) >= max_indent
         result["ends_abruptly"] = abs(r - right_margin) >= 25  # FIXME
-        # print(text, r, right_margin, r - right_margin)
         result["punctuation"] = ends_in_punctuation(text)
         result["paragraph_start"] = text[0].isupper() or text[0] in {"-", "—"} if text else False
 
