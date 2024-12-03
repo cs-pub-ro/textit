@@ -173,6 +173,9 @@ class Page(object):
 
         return self._text
 
+    def is_empty(self):
+        return not self.get_text()
+
     def is_broken(self):
         if self._broken is None:
             text = self.get_text()
@@ -369,13 +372,19 @@ class PdfProcessor(object):
         if self._broken is None:
             # check that most pages had high-quality text
             broken_pages = 0
+            empty_pages = 0
             pages = self.get_pages()
             for page in pages[:10]:
                 if page.is_broken():
                     broken_pages += 1
+                elif page.is_empty():
+                    empty_pages += 1
 
             broken_threshold = min(3, self._page_count)
-            self._broken = broken_pages >= broken_threshold
+            empty_threshold = min(3, self._page_count)
+            logger.debug(f"Broken pages: {broken_pages}/{self._page_count}")
+            self._broken = broken_pages >= broken_threshold or \
+                           empty_pages >= empty_threshold
 
         return self._broken
 
