@@ -1,3 +1,4 @@
+from re import L
 import sys
 import os
 import argparse
@@ -78,6 +79,8 @@ def process_file(input_path: str, output_path: str) -> None:
 
     file_type = get_file_type(input_path)
     file_digest = compute_sha1(input_path)
+    logger.info(f"Processing '{input_path}' (type: {file_type}, digest: "
+                f"{file_digest})")
     metadata = Metadata(file_type=file_type, document_class=DocumentClass.CRAWLED)
     _, basename = os.path.split(input_path)
     title = os.path.splitext(basename)[0]
@@ -88,9 +91,11 @@ def process_file(input_path: str, output_path: str) -> None:
     url = input_path
     try:
         input_path.encode("utf-8")
+        logger.debug(f"UTF-8 filename: '{input_path}'")
         result, metadata = extractor.extract_text(input_path, metadata)
     except UnicodeEncodeError:
         url = input_path.encode("utf-8", "surrogateescape")
+        logger.debug(f"Non-UTF-8 filename: '{input_path}'")
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
             shutil.copy2(input_path, temp_output.name)
             result, metadata = extractor.extract_text(temp_output.name, metadata)
@@ -98,8 +103,10 @@ def process_file(input_path: str, output_path: str) -> None:
     assert(metadata is not None)
 
     if result.is_ok():
+        logger.debug(f"Text extraction successful for '{input_path}'")
         text = result.unwrap()
     else:
+        logger.debug(f"Text extraction failed for '{input_path}': {result}")
         text = ""
 
     metadata.version = textit.version.__version__
@@ -174,6 +181,8 @@ def main():
     tasks = (create_task(file, args.output_dir, args.prefix) for file in input_files)
     tasks = filter(lambda e: get_basename_noext(e[1]) not in existing_hashes, tasks)
     tasks = sorted(tasks, key=lambda e: os.path.getsize(e[0]))
+    tasks_str = "\n\t".join(task[0] for task in tasks)
+    logger.info(f"Processing files:\n\t{tasks_str}")
 
     with mp.Pool(initializer=init_proc, initargs=[args], processes=args.num_processes) as pool:
         with tqdm(total=len(tasks), desc="Extracting text", unit="file") as pbar:

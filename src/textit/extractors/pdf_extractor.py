@@ -427,15 +427,20 @@ def process_pdf(pdf_path, page_range=None):
     proc = PdfProcessor(pdf_path, page_range)
     procmeta = {}
     if proc.broken_pdf():
+        logger.info("Broken pdf detected, trying to OCR it.")
         procmeta["ocr"] = True
         try:
             proc = apply_ocr(pdf_path, page_range)
+            logger.info(f"Processed non-broken PDF '{pdf_path}'")
         except ocrmypdf.exceptions.EncryptedPdfError:
             procmeta["decrypted"] = True
+            logger.info("Encrypted pdf detected, trying to decrypt it.")
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_output:
                 temp_output_path = temp_output.name
                 decrypt_pdf(pdf_path, temp_output_path)
                 proc = apply_ocr(temp_output_path, page_range)
+
+            logger.info(f"Processed broken PDF '{pdf_path}'")
 
     return proc, procmeta
 
@@ -556,7 +561,7 @@ def line_cleaner(doc_info):
 
 
 def pdf_handler(file_path: str, metadata: Metadata) -> tuple[Result[List[str]], Metadata]:
-    ocrmypdf.configure_logging(ocrmypdf.Verbosity.quiet)
+    # ocrmypdf.configure_logging(ocrmypdf.Verbosity.quiet)
     try:
         proc, procmeta = process_pdf(file_path)
         for k, v in procmeta.items():
@@ -567,10 +572,12 @@ def pdf_handler(file_path: str, metadata: Metadata) -> tuple[Result[List[str]], 
         return (Result.ok(extracted_text), metadata)
     except Exception as e:
         se = str(e)
+        logger.error("Error extracting text from PDF at "
+                     "'{file_path}':{format_exception(e)}")
         if se == "Failed to load document (PDFium: Incorrect password error).":
             metadata.drop_reason = "unknown_encryption_password"
         elif se in {"Failed to load document (PDFium: Data format error).",
-                "Failed to load document (PDFium: Success)."}:
+                    "Failed to load document (PDFium: Success)."}:
             metadata.drop_reason = "broken-pdf"
 
         estr = format_exception(e)
